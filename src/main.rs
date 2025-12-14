@@ -40,6 +40,21 @@ async fn handle_client(
     let mut buf_reader = BufReader::new(reader);
     let mut line = String::new();
 
+    let username = loop {
+        writer.write_all(b"Choose a username: ").await?;
+        buf_reader.read_line(&mut line).await?;
+        let read_username = line.trim().to_string();
+        line.clear();
+
+        if read_username.is_empty() {
+            writer.write_all(b"Username cannot be empty\n").await?;
+        } else {
+            break read_username;
+        }
+    };
+
+    tx.send(format!("* {username} joined the server\n"))?;
+
     loop {
         tokio::select! {
             bytes_read_result = buf_reader.read_line(&mut line) => {
@@ -47,7 +62,7 @@ async fn handle_client(
                     break;
                 }
 
-                tx.send(line.clone())?;
+                tx.send(format!("{username}: {line}"))?;
                 line.clear();
             }
 
@@ -57,6 +72,7 @@ async fn handle_client(
         }
     }
 
+    tx.send(format!("* {username} left the server\n"))?;
     Ok(())
 }
 
