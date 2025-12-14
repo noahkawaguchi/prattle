@@ -31,6 +31,29 @@ async fn async_main() -> Result<()> {
     }
 }
 
+enum Command<'a> {
+    Empty,
+    Quit,
+    Action(&'a str),
+    Msg(&'a str),
+}
+
+impl<'a> Command<'a> {
+    fn from(input: &'a str) -> Self {
+        let trimmed = input.trim();
+
+        if trimmed.is_empty() {
+            Self::Empty
+        } else if trimmed == "/quit" {
+            Self::Quit
+        } else if let Some(action) = trimmed.strip_prefix("/action ") {
+            Self::Action(action)
+        } else {
+            Self::Msg(trimmed)
+        }
+    }
+}
+
 async fn handle_client(
     socket: TcpStream,
     tx: Sender<String>,
@@ -62,7 +85,21 @@ async fn handle_client(
                     break;
                 }
 
-                tx.send(format!("{username}: {line}"))?;
+                match Command::from(&line) {
+                    Command::Empty => {}
+                    Command::Quit => {
+                        line.clear();
+                        writer.write_all(b"Goodbye for now!\n").await?;
+                        break;
+                    }
+                    Command::Action(action) => {
+                        tx.send(format!("* {username} {action}\n"))?;
+                    }
+                    Command::Msg(msg) => {
+                        tx.send(format!("{username}: {msg}\n"))?;
+                    }
+                }
+
                 line.clear();
             }
 
