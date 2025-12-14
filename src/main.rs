@@ -2,7 +2,7 @@ use anyhow::Result;
 use std::env;
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    net::TcpListener,
+    net::{TcpListener, TcpStream},
 };
 
 async fn async_main() -> Result<()> {
@@ -12,20 +12,29 @@ async fn async_main() -> Result<()> {
 
     loop {
         let (socket, client_addr) = listener.accept().await?;
-        println!("Connection from {client_addr}");
+        println!("New connection from {client_addr}");
 
-        let (reader, mut writer) = socket.into_split();
-        let mut buf_reader = BufReader::new(reader);
-        let mut line = String::new();
-
-        while buf_reader.read_line(&mut line).await? > 0 {
-            print!("Received line: {line}");
-            writer.write_all(line.as_bytes()).await?;
-            line.clear();
-        }
-
-        println!("{client_addr} disconnected");
+        tokio::spawn(async move {
+            match handle_client(socket).await {
+                Err(e) => eprintln!("Error handling client {client_addr}: {e}"),
+                Ok(()) => println!("Client {client_addr} disconnected"),
+            }
+        });
     }
+}
+
+async fn handle_client(socket: TcpStream) -> Result<()> {
+    let (reader, mut writer) = socket.into_split();
+    let mut buf_reader = BufReader::new(reader);
+    let mut line = String::new();
+
+    while buf_reader.read_line(&mut line).await? > 0 {
+        print!("Received line from client: {line}");
+        writer.write_all(line.as_bytes()).await?;
+        line.clear();
+    }
+
+    Ok(())
 }
 
 fn main() -> Result<()> {
