@@ -1,3 +1,4 @@
 {
-  "words": ["clippy"]
+  "useGitignore": true,
+  "words": ["clippy", "dotenv"]
 }
