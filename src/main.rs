@@ -1,4 +1,4 @@
-mod client_conn;
+mod client;
 
 use anyhow::Result;
 use std::{
@@ -17,8 +17,6 @@ use tokio::{
 
 const CHANNEL_CAP: usize = 100;
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
-
-type Users = Arc<Mutex<HashSet<String>>>;
 
 async fn async_main() -> Result<()> {
     let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000"));
@@ -44,8 +42,7 @@ async fn async_main() -> Result<()> {
                 let shutdown_rx = shutdown_tx.subscribe();
 
                 tokio::spawn(async move {
-                    match client_conn::handle_client(socket, tx, rx, shutdown_rx, users_clone).await
-                    {
+                    match client::handle_client(socket, tx, rx, shutdown_rx, users_clone).await {
                         Err(e) => eprintln!("Error handling client {client_addr}: {e}"),
                         Ok(()) => println!("Client {client_addr} disconnected"),
                     }

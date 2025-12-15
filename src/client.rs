@@ -1,13 +1,18 @@
-use crate::Users;
 use anyhow::Result;
+use std::{collections::HashSet, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::{
         TcpStream,
         tcp::{OwnedReadHalf, OwnedWriteHalf},
     },
-    sync::broadcast::{Receiver, Sender},
+    sync::{
+        Mutex,
+        broadcast::{Receiver, Sender},
+    },
 };
+
+type Users = Arc<Mutex<HashSet<String>>>;
 
 pub async fn handle_client(
     socket: TcpStream,
