@@ -1,6 +1,5 @@
 mod client_conn;
 
-use crate::client_conn::ClientConn;
 use anyhow::Result;
 use std::{
     collections::HashSet,
@@ -45,7 +44,8 @@ async fn async_main() -> Result<()> {
                 let shutdown_rx = shutdown_tx.subscribe();
 
                 tokio::spawn(async move {
-                    match ClientConn::new(socket, tx, rx, shutdown_rx, users_clone).handle().await {
+                    match client_conn::handle_client(socket, tx, rx, shutdown_rx, users_clone).await
+                    {
                         Err(e) => eprintln!("Error handling client {client_addr}: {e}"),
                         Ok(()) => println!("Client {client_addr} disconnected"),
                     }

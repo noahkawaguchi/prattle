@@ -9,7 +9,22 @@ use tokio::{
     sync::broadcast::{Receiver, Sender},
 };
 
-pub struct ClientConn {
+pub async fn handle_client(
+    socket: TcpStream,
+    tx: Sender<String>,
+    rx: Receiver<String>,
+    shutdown_rx: Receiver<()>,
+    users: Users,
+) -> Result<()> {
+    let (reader, writer) = socket.into_split();
+
+    let mut handler =
+        ClientHandler { reader: BufReader::new(reader), writer, tx, rx, shutdown_rx, users };
+
+    handler.run().await
+}
+
+struct ClientHandler {
     reader: BufReader<OwnedReadHalf>,
     writer: OwnedWriteHalf,
     tx: Sender<String>,
@@ -18,20 +33,8 @@ pub struct ClientConn {
     users: Users,
 }
 
-impl ClientConn {
-    pub fn new(
-        socket: TcpStream,
-        tx: Sender<String>,
-        rx: Receiver<String>,
-        shutdown_rx: Receiver<()>,
-        users: Users,
-    ) -> Self {
-        let (inner_reader, writer) = socket.into_split();
-        let reader = BufReader::new(inner_reader);
-        Self { reader, writer, tx, rx, shutdown_rx, users }
-    }
-
-    pub async fn handle(&mut self) -> Result<()> {
+impl ClientHandler {
+    async fn run(&mut self) -> Result<()> {
         let mut line = String::new();
 
         let username = loop {
