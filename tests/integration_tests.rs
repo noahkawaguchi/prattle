@@ -34,10 +34,10 @@ impl TestClient {
         let mut client = Self::connect(addr).await?;
 
         // Read the "Choose a username: " prompt (doesn't end with newline)
-        let prompt = client.read_until_prompt().await?;
+        let prompt = client.read_prompt().await?;
 
         assert!(
-            prompt.contains("Choose a username"),
+            prompt.contains("Choose a username:"),
             "Expected username prompt, got: {prompt}"
         );
 
@@ -59,34 +59,40 @@ impl TestClient {
         Ok(())
     }
 
-    /// Reads from the server until a prompt ending (text ending with ": " but no newline).
-    async fn read_until_prompt(&mut self) -> Result<String> {
-        let mut buffer = Vec::new();
+    /// Reads a prompt from the server using custom termination logic.
+    ///
+    /// A prompt is data up until a prompt ending, ": " (no newline). However, this function will
+    /// also stop after a newline, which could be from an error message or unexpected other text
+    /// from the server.
+    async fn read_prompt(&mut self) -> Result<String> {
+        let mut accumulator = Vec::new();
 
         let read_future = async {
             loop {
-                let byte = self.reader.fill_buf().await?;
+                // Peek at the buffered data without consuming it yet
+                let reader_buf_bytes = self.reader.fill_buf().await?;
 
-                if byte.is_empty() {
+                if reader_buf_bytes.is_empty() {
+                    break; // EOF
+                }
+
+                // Copy the data to the local buffer and mark it as read in the reader's buffer
+                accumulator.extend_from_slice(reader_buf_bytes);
+                let consume_len = reader_buf_bytes.len();
+                self.reader.consume(consume_len);
+
+                // Stop after reaching a complete prompt (ends with ": ")
+                if accumulator.len() >= 2 && accumulator[accumulator.len() - 2..] == [b':', b' '] {
                     break;
                 }
 
-                buffer.extend_from_slice(byte);
-                let len = byte.len();
-                self.reader.consume(len);
-
-                // Check for a prompt (ends with ": ")
-                if buffer.len() >= 2 && buffer[buffer.len() - 2..] == [b':', b' '] {
-                    break;
-                }
-
-                // Also check if we got a newline (for error messages)
-                if buffer.last() == Some(&b'\n') {
+                // Stop after reaching a newline (error message or unexpected other message)
+                if accumulator.last() == Some(&b'\n') {
                     break;
                 }
             }
 
-            Ok(String::from_utf8_lossy(&buffer).to_string())
+            Ok(String::from_utf8_lossy(&accumulator).to_string())
         };
 
         timeout(READ_TIMEOUT, read_future)
@@ -183,7 +189,7 @@ fn duplicate_usernames_are_rejected() -> Result<()> {
 
         // Try to connect with same username
         let mut client2 = TestClient::connect(&addr).await?;
-        client2.read_until_prompt().await?;
+        client2.read_prompt().await?;
         client2.send_line("alice").await?;
 
         // Expect rejection
