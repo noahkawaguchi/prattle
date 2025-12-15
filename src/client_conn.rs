@@ -83,25 +83,8 @@ impl ClientConn {
                         break;
                     }
 
-                    match Command::from(&line) {
-                        Command::Empty => {}
-                        Command::Quit => {
-                            self.writer.write_all(b"Goodbye for now!\n").await?;
-                            break;
-                        }
-                        Command::Who => {
-                            let users_guard = self.users.lock().await;
-                            let list = users_guard.iter().map(String::as_str).collect::<Vec<_>>();
-                            let msg = format!("Currently online: {}\n", list.join(", "));
-                            drop(users_guard);
-                            self.writer.write_all(msg.as_bytes()).await?;
-                        }
-                        Command::Action(action) => {
-                            self.tx.send(format!("* {username} {action}\n"))?;
-                        }
-                        Command::Msg(msg) => {
-                            self.tx.send(format!("{username}: {msg}\n"))?;
-                        }
+                    if self.run_command(username, &line).await? {
+                        break;
                     }
 
                     line.clear();
@@ -120,30 +103,32 @@ impl ClientConn {
 
         Ok(())
     }
-}
 
-enum Command<'a> {
-    Empty,
-    Quit,
-    Who,
-    Action(&'a str),
-    Msg(&'a str),
-}
+    /// Parses and runs the command or chat message, returning `Ok(true)` to quit.
+    async fn run_command(&mut self, username: &str, line: &str) -> Result<bool> {
+        match line.trim() {
+            "/quit" => {
+                self.writer.write_all(b"Goodbye for now!\n").await?;
+                return Ok(true);
+            }
 
-impl<'a> Command<'a> {
-    fn from(input: &'a str) -> Self {
-        let trimmed = input.trim();
+            "/who" => {
+                let users_guard = self.users.lock().await;
+                let list = users_guard.iter().map(String::as_str).collect::<Vec<_>>();
+                let msg = format!("Currently online: {}\n", list.join(", "));
+                drop(users_guard);
+                self.writer.write_all(msg.as_bytes()).await?;
+            }
 
-        if trimmed.is_empty() {
-            Self::Empty
-        } else if trimmed == "/quit" {
-            Self::Quit
-        } else if trimmed == "/who" {
-            Self::Who
-        } else if let Some(action) = trimmed.strip_prefix("/action ") {
-            Self::Action(action)
-        } else {
-            Self::Msg(trimmed)
+            trimmed => {
+                if let Some(action) = trimmed.strip_prefix("/action ") {
+                    self.tx.send(format!("* {username} {action}\n"))?;
+                } else if !trimmed.is_empty() {
+                    self.tx.send(format!("{username}: {trimmed}\n"))?;
+                }
+            }
         }
+
+        Ok(false)
     }
 }
