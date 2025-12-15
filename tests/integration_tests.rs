@@ -30,10 +30,8 @@ impl TestClient {
     }
 
     /// Connects to the server and completes username selection.
-    async fn connect_with_username(addr: &str, username: &str) -> Result<Self> {
-        let socket = TcpStream::connect(addr).await?;
-        let (reader, writer) = socket.into_split();
-        let mut client = Self { reader: BufReader::new(reader), writer };
+    async fn connect_with_username(username: &str, addr: &str) -> Result<Self> {
+        let mut client = Self::connect(addr).await?;
 
         // Read the "Choose a username: " prompt (doesn't end with newline)
         let prompt = client.read_until_prompt().await?;
@@ -151,7 +149,7 @@ async fn spawn_test_server() -> Result<String> {
 fn client_can_connect() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
-        TestClient::connect_with_username(&addr, "alice").await?;
+        TestClient::connect_with_username("alice", &addr).await?;
         Ok(())
     })
 }
@@ -181,7 +179,7 @@ fn empty_usernames_are_rejected() -> Result<()> {
 fn duplicate_usernames_are_rejected() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
-        let _client1 = TestClient::connect_with_username(&addr, "alice").await?;
+        let _client1 = TestClient::connect_with_username("alice", &addr).await?;
 
         // Try to connect with same username
         let mut client2 = TestClient::connect(&addr).await?;
@@ -205,10 +203,10 @@ fn duplicate_usernames_are_rejected() -> Result<()> {
 fn join_message_broadcasts_to_all_clients() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
 
         // When client 2 connects, client 1 should see the join message
-        let _client2 = TestClient::connect_with_username(&addr, "bob").await?;
+        let _client2 = TestClient::connect_with_username("bob", &addr).await?;
         client1.read_line_assert_contains("bob joined").await?;
 
         Ok(())
@@ -220,8 +218,8 @@ fn client_messages_broadcast_to_all_clients() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
 
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
-        let mut client2 = TestClient::connect_with_username(&addr, "bob").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
 
         // Client 1 should receive bob's join message
         client1.read_line_assert_contains("bob joined").await?;
@@ -257,8 +255,8 @@ fn who_command_lists_online_users() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
 
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
-        let mut client2 = TestClient::connect_with_username(&addr, "bob").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
 
         // Client 1 should receive bob's join message
         client1.read_line_assert_contains("bob joined").await?;
@@ -288,9 +286,9 @@ fn action_command_broadcasts_to_all_clients() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
 
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
-        let mut client2 = TestClient::connect_with_username(&addr, "bob").await?;
-        let mut client3 = TestClient::connect_with_username(&addr, "charlie").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
+        let mut client3 = TestClient::connect_with_username("charlie", &addr).await?;
 
         // Consume join messages
         client1.read_line_assert_contains("bob joined").await?;
@@ -317,8 +315,8 @@ fn quit_command_sends_goodbye_message_and_broadcast() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
 
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
-        let mut client2 = TestClient::connect_with_username(&addr, "bob").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
 
         // Client 1 should receive bob's join message
         client1.read_line_assert_contains("bob joined").await?;
@@ -341,8 +339,8 @@ fn empty_messages_are_ignored() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
 
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
-        let mut client2 = TestClient::connect_with_username(&addr, "bob").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
 
         // Client 1 should receive bob's join message
         client1.read_line_assert_contains("bob joined").await?;
@@ -367,9 +365,9 @@ fn multiple_clients_can_broadcast() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
 
-        let mut client1 = TestClient::connect_with_username(&addr, "alice").await?;
-        let mut client2 = TestClient::connect_with_username(&addr, "bob").await?;
-        let mut client3 = TestClient::connect_with_username(&addr, "charlie").await?;
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
+        let mut client3 = TestClient::connect_with_username("charlie", &addr).await?;
 
         // Consume join messages received by each client
         client1.read_line_assert_contains("bob joined").await?;
