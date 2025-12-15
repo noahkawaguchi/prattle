@@ -30,15 +30,13 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 ///
 /// # Example
 /// ```no_run
-/// use prattle::run_server;
-///
 /// #[tokio::main]
-/// async fn main() {
-///     run_server("127.0.0.1:8000".to_string()).await.unwrap();
+/// async fn main() -> anyhow::Result<()> {
+///     prattle::run_server("127.0.0.1:8000").await
 /// }
 /// ```
-pub async fn run_server(bind_addr: String) -> Result<()> {
-    let listener = TcpListener::bind(&bind_addr).await?;
+pub async fn run_server(bind_addr: &str) -> Result<()> {
+    let listener = TcpListener::bind(bind_addr).await?;
     println!("Listening on {bind_addr}");
 
     let (sender, _) = broadcast::channel(CHANNEL_CAP);

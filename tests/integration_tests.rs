@@ -140,7 +140,7 @@ async fn spawn_test_server() -> Result<String> {
 
     // Spawn the server in a background task
     tokio::spawn(async move {
-        if let Err(e) = prattle::run_server(server_addr).await {
+        if let Err(e) = prattle::run_server(&server_addr).await {
             eprintln!("Error running test server: {e}");
         }
     });
