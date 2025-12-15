@@ -24,6 +24,32 @@ pub async fn handle_client(
     handler.run().await
 }
 
+enum Command<'a> {
+    Empty,
+    Quit,
+    Who,
+    Action(&'a str),
+    Msg(&'a str),
+}
+
+impl<'a> Command<'a> {
+    fn parse(input: &'a str) -> Self {
+        let trimmed = input.trim();
+
+        if trimmed.is_empty() {
+            Self::Empty
+        } else if trimmed == "/quit" {
+            Self::Quit
+        } else if trimmed == "/who" {
+            Self::Who
+        } else if let Some(action) = trimmed.strip_prefix("/action ") {
+            Self::Action(action)
+        } else {
+            Self::Msg(trimmed)
+        }
+    }
+}
+
 struct ClientHandler {
     reader: BufReader<OwnedReadHalf>,
     writer: OwnedWriteHalf,
@@ -107,31 +133,36 @@ impl ClientHandler {
         Ok(())
     }
 
-    /// Parses and runs the command or chat message, returning `Ok(true)` to quit.
+    /// Runs the command or sends the message, returning `Ok(true)` to quit.
     async fn run_command(&mut self, username: &str, line: &str) -> Result<bool> {
-        match line.trim() {
-            "/quit" => {
+        let should_quit = match Command::parse(line) {
+            Command::Empty => false,
+
+            Command::Quit => {
                 self.writer.write_all(b"Goodbye for now!\n").await?;
-                return Ok(true);
+                true
             }
 
-            "/who" => {
+            Command::Who => {
                 let users_guard = self.users.lock().await;
                 let list = users_guard.iter().map(String::as_str).collect::<Vec<_>>();
                 let msg = format!("Currently online: {}\n", list.join(", "));
                 drop(users_guard);
                 self.writer.write_all(msg.as_bytes()).await?;
+                false
             }
 
-            trimmed => {
-                if let Some(action) = trimmed.strip_prefix("/action ") {
-                    self.tx.send(format!("* {username} {action}\n"))?;
-                } else if !trimmed.is_empty() {
-                    self.tx.send(format!("{username}: {trimmed}\n"))?;
-                }
+            Command::Action(action) => {
+                self.tx.send(format!("* {username} {action}\n"))?;
+                false
             }
-        }
 
-        Ok(false)
+            Command::Msg(msg) => {
+                self.tx.send(format!("{username}: {msg}\n"))?;
+                false
+            }
+        };
+
+        Ok(should_quit)
     }
 }
