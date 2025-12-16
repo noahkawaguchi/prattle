@@ -42,7 +42,7 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
     let shutdown_signal = shutdown_signal_handler()?;
     tokio::pin!(shutdown_signal);
 
-    let wait_for_disconnects = loop {
+    if loop {
         tokio::select! {
             conn_result = listener.accept() => {
                 let (socket, client_addr) = conn_result?;
@@ -78,9 +78,7 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
                 }
             }
         }
-    };
-
-    if wait_for_disconnects {
+    } {
         println!("Waiting for clients to disconnect");
 
         let start = Instant::now();
