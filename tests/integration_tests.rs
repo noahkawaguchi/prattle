@@ -4,7 +4,7 @@ use crate::common::tokio_test;
 use anyhow::{Context, Result};
 use std::time::Duration;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     net::{
         TcpListener, TcpStream,
         tcp::{OwnedReadHalf, OwnedWriteHalf},
@@ -61,38 +61,20 @@ impl TestClient {
 
     /// Reads a prompt from the server using custom termination logic.
     ///
-    /// A prompt is data up until a prompt ending, ": " (no newline). However, this function will
-    /// also stop after a newline, which could be from an error message or unexpected other text
-    /// from the server.
+    /// Specifically, reads until the first ':', then also reads the following byte (assumed to be a
+    /// trailing space).
     async fn read_prompt(&mut self) -> Result<String> {
-        let mut accumulator = Vec::new();
-
         let read_future = async {
-            loop {
-                // Peek at the buffered data without consuming it yet
-                let reader_buf_bytes = self.reader.fill_buf().await?;
+            // Read up to and including the ':' delimiter
+            let mut buffer = Vec::new();
+            self.reader.read_until(b':', &mut buffer).await?;
 
-                if reader_buf_bytes.is_empty() {
-                    break; // EOF
-                }
+            // Read the trailing space
+            let mut space = [0u8; 1];
+            self.reader.read_exact(&mut space).await?;
+            buffer.push(space[0]);
 
-                // Copy the data to the local buffer and mark it as read in the reader's buffer
-                accumulator.extend_from_slice(reader_buf_bytes);
-                let consume_len = reader_buf_bytes.len();
-                self.reader.consume(consume_len);
-
-                // Stop after reaching a complete prompt (ends with ": ")
-                if accumulator.len() >= 2 && accumulator[accumulator.len() - 2..] == [b':', b' '] {
-                    break;
-                }
-
-                // Stop after reaching a newline (error message or unexpected other message)
-                if accumulator.last() == Some(&b'\n') {
-                    break;
-                }
-            }
-
-            Ok(String::from_utf8_lossy(&accumulator).to_string())
+            Ok(String::from_utf8_lossy(&buffer).to_string())
         };
 
         timeout(READ_TIMEOUT, read_future)
