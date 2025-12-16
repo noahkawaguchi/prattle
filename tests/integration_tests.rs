@@ -290,13 +290,23 @@ fn who_command_lists_online_users() -> Result<()> {
             .read_line_assert_contains_all(&["Currently online:", "alice", "bob"])
             .await?;
 
-        // Client 2 uses /who command
-        client2.send_line("/who").await?;
+        // Client 2 should not have seen Client 1's listing
+        assert!(client2.read_line_assert_contains("").await.is_err());
 
-        // Should see same list
+        // Client 2 should get the same list after using the /help command
+        client2.send_line("/who").await?;
         client2
             .read_line_assert_contains_all(&["Currently online:", "alice", "bob"])
             .await?;
+
+        // Users who quit should not be included in the /who command listing
+        client1.send_line("/quit").await?;
+        client2.read_line_assert_contains("alice left").await?;
+        client2.send_line("/who").await?;
+        let who_listing = client2
+            .read_line_assert_contains("Currently online")
+            .await?;
+        assert!(!who_listing.contains("alice"));
 
         Ok(())
     })
