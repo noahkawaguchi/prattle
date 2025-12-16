@@ -92,7 +92,7 @@ impl ClientHandler {
                         break;
                     }
 
-                    if self.run_command(username, &line).await? {
+                    if self.run_command(Command::parse(&line), username).await? {
                         break;
                     }
 
@@ -114,8 +114,8 @@ impl ClientHandler {
     }
 
     /// Runs the command or sends the message, returning `Ok(true)` to quit.
-    async fn run_command(&mut self, username: &str, line: &str) -> Result<bool> {
-        let should_quit = match Command::parse(line) {
+    async fn run_command(&mut self, command: Command<'_>, username: &str) -> Result<bool> {
+        let should_quit = match command {
             Command::Empty => false,
 
             Command::Quit => {
