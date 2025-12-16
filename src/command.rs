@@ -62,6 +62,16 @@ mod tests {
     }
 
     #[test]
+    fn parses_help_command() {
+        for input in ["/help", "  /help  ", "/help\n"] {
+            assert!(
+                matches!(Command::parse(input), Command::Help),
+                "expected Help command for {input}"
+            );
+        }
+    }
+
+    #[test]
     fn parses_who_command() {
         for input in ["/who", "  /who  ", "/who\n"] {
             assert!(
