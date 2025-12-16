@@ -1,4 +1,5 @@
 pub(crate) mod client;
+pub(crate) mod command;
 
 use anyhow::Result;
 use std::{
