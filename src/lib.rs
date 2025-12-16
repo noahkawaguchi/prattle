@@ -15,7 +15,10 @@ use tokio::{
     },
 };
 
+/// The number of messages that can be held in the channel.
 const CHANNEL_CAP: usize = 100;
+
+/// The time to wait for clients to disconnect during graceful shutdown.
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Runs the chat server on the specified bind address.
