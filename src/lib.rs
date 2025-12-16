@@ -42,7 +42,7 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
     let shutdown_signal = shutdown_signal_handler()?;
     tokio::pin!(shutdown_signal);
 
-    loop {
+    let wait_for_disconnects = loop {
         tokio::select! {
             conn_result = listener.accept() => {
                 let (socket, client_addr) = conn_result?;
@@ -62,30 +62,41 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
             }
 
             () = &mut shutdown_signal => {
-                println!("Shutdown signal received, notifying clients");
-
-                if let Err(e) = shutdown_tx.send(()) {
-                    eprintln!("Failed to broadcast shutdown signal: {e}");
+                break match shutdown_tx.send(()) {
+                    Ok(receivers) => {
+                        println!("Broadcast shutdown to {receivers} client(s)");
+                        true
+                    }
+                    Err(e) if users.lock().await.is_empty() => {
+                        println!("No users online to broadcast shutdown to: {e}");
+                        false
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to broadcast shutdown with users online: {e}");
+                        false
+                    }
                 }
-
-                break;
             }
         }
-    }
+    };
 
-    let start = Instant::now();
+    if wait_for_disconnects {
+        println!("Waiting for clients to disconnect");
 
-    while !users.lock().await.is_empty() {
-        if start.elapsed() >= SHUTDOWN_TIMEOUT {
-            let remaining = users.lock().await.len();
-            println!("Shutdown timeout reached with {remaining} client(s) still connected");
-            break;
+        let start = Instant::now();
+
+        while !users.lock().await.is_empty() {
+            if start.elapsed() >= SHUTDOWN_TIMEOUT {
+                let remaining = users.lock().await.len();
+                println!("Shutdown timeout reached with {remaining} client(s) still connected");
+                break;
+            }
+
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
-
-        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 
-    println!("Graceful shutdown process done. Shutting down now.");
+    println!("Server shutting down now");
     Ok(())
 }
 
