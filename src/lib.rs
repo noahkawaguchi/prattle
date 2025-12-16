@@ -1,4 +1,4 @@
-pub mod client;
+pub(crate) mod client;
 
 use anyhow::Result;
 use std::{
