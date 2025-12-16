@@ -1,4 +1,4 @@
-use crate::command::Command;
+use crate::command::{COMMAND_HELP, Command};
 use anyhow::Result;
 use std::{collections::HashSet, sync::Arc};
 use tokio::{
@@ -121,6 +121,11 @@ impl ClientHandler {
             Command::Quit => {
                 self.writer.write_all(b"Goodbye for now!\n").await?;
                 true
+            }
+
+            Command::Help => {
+                self.writer.write_all(COMMAND_HELP).await?;
+                false
             }
 
             Command::Who => {
