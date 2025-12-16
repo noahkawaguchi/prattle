@@ -65,6 +65,12 @@ impl ClientHandler {
             }
         };
 
+        self.writer
+            .write_all(
+                format!("Hi {username}, welcome to Prattle! (Send /help for help)\n").as_bytes(),
+            )
+            .await?;
+
         self.tx.send(format!("* {username} joined the server\n"))?;
 
         let result = self.command_loop(&username).await;

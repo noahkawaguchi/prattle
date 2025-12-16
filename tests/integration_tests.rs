@@ -44,7 +44,10 @@ impl TestClient {
         // Send username
         client.send_line(username).await?;
 
-        // Client receives their own join message, so consume it here
+        // Client receives a welcome message and their own join message
+        client
+            .read_line_assert_contains_all(&[username, "welcome"])
+            .await?;
         client
             .read_line_assert_contains_all(&[username, "joined the server"])
             .await?;
@@ -153,8 +156,11 @@ fn empty_usernames_are_rejected() -> Result<()> {
             client.read_line_assert_contains("cannot be empty").await?;
         }
 
-        // Now send a valid username and expect the join message
+        // Now send a valid username and expect the welcome/join messages
         client.send_line("alice").await?;
+        client
+            .read_line_assert_contains_all(&["alice", "welcome"])
+            .await?;
         client
             .read_line_assert_contains("alice joined the server")
             .await?;
@@ -179,6 +185,9 @@ fn duplicate_usernames_are_rejected() -> Result<()> {
 
         // Send a different username and expect success
         client2.send_line("bob").await?;
+        client2
+            .read_line_assert_contains_all(&["bob", "welcome"])
+            .await?;
         client2
             .read_line_assert_contains("bob joined the server")
             .await?;
