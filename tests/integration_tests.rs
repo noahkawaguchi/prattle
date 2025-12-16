@@ -13,7 +13,7 @@ use tokio::{
 };
 
 /// The amount of time to wait when reading from the server.
-const READ_TIMEOUT: Duration = Duration::from_secs(2);
+const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
 struct TestClient {
@@ -233,6 +233,39 @@ fn client_messages_broadcast_to_all_clients() -> Result<()> {
 
         // Client 1 should also receive it
         client1.read_line_assert_contains("bob: Hi alice!").await?;
+
+        Ok(())
+    })
+}
+
+#[test]
+fn help_command_lists_usage() -> Result<()> {
+    tokio_test(async {
+        let addr = spawn_test_server().await?;
+
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
+
+        // Client 1 should receive bob's join message
+        client1.read_line_assert_contains("bob joined").await?;
+
+        // Client 1 uses /help command
+        client1.send_line("/help").await?;
+
+        // Should see the help block
+        let help_words = ["", "quit", "help", "who", "action", "", "message", ""];
+        for word in help_words {
+            client1.read_line_assert_contains(word).await?;
+        }
+
+        // Client 2 should not have seen Client 1's help message
+        assert!(client2.read_line_assert_contains("").await.is_err());
+
+        // Client 2 should get the same block after using the /help command
+        client2.send_line("/help").await?;
+        for word in help_words {
+            client2.read_line_assert_contains(word).await?;
+        }
 
         Ok(())
     })
