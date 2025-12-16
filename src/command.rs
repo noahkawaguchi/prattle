@@ -1,10 +1,21 @@
 pub enum Command<'a> {
     Empty,
     Quit,
+    Help,
     Who,
     Action(&'a str),
     Msg(&'a str),
 }
+
+pub const COMMAND_HELP: &[u8] = b"
+/quit             Leave the server
+/help             Show this message
+/who              List online users
+/action <action>  Broadcast an action, e.g. /action waves
+
+[anything else]   Send a regular message
+
+";
 
 impl<'a> Command<'a> {
     pub fn parse(input: &'a str) -> Self {
@@ -14,6 +25,8 @@ impl<'a> Command<'a> {
             Self::Empty
         } else if trimmed == "/quit" {
             Self::Quit
+        } else if trimmed == "/help" {
+            Self::Help
         } else if trimmed == "/who" {
             Self::Who
         } else if let Some(action) = trimmed.strip_prefix("/action ") {
@@ -44,6 +57,16 @@ mod tests {
             assert!(
                 matches!(Command::parse(input), Command::Quit),
                 "expected Quit command for {input}"
+            );
+        }
+    }
+
+    #[test]
+    fn parses_help_command() {
+        for input in ["/help", "  /help  ", "/help\n"] {
+            assert!(
+                matches!(Command::parse(input), Command::Help),
+                "expected Help command for {input}"
             );
         }
     }

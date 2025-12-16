@@ -13,7 +13,7 @@ use tokio::{
 };
 
 /// The amount of time to wait when reading from the server.
-const READ_TIMEOUT: Duration = Duration::from_secs(2);
+const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
 struct TestClient {
@@ -44,7 +44,10 @@ impl TestClient {
         // Send username
         client.send_line(username).await?;
 
-        // Client receives their own join message, so consume it here
+        // Client receives a welcome message and their own join message
+        client
+            .read_line_assert_contains_all(&[username, "welcome"])
+            .await?;
         client
             .read_line_assert_contains_all(&[username, "joined the server"])
             .await?;
@@ -153,8 +156,11 @@ fn empty_usernames_are_rejected() -> Result<()> {
             client.read_line_assert_contains("cannot be empty").await?;
         }
 
-        // Now send a valid username and expect the join message
+        // Now send a valid username and expect the welcome/join messages
         client.send_line("alice").await?;
+        client
+            .read_line_assert_contains_all(&["alice", "welcome"])
+            .await?;
         client
             .read_line_assert_contains("alice joined the server")
             .await?;
@@ -179,6 +185,9 @@ fn duplicate_usernames_are_rejected() -> Result<()> {
 
         // Send a different username and expect success
         client2.send_line("bob").await?;
+        client2
+            .read_line_assert_contains_all(&["bob", "welcome"])
+            .await?;
         client2
             .read_line_assert_contains("bob joined the server")
             .await?;
@@ -239,6 +248,39 @@ fn client_messages_broadcast_to_all_clients() -> Result<()> {
 }
 
 #[test]
+fn help_command_lists_usage() -> Result<()> {
+    tokio_test(async {
+        let addr = spawn_test_server().await?;
+
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
+
+        // Client 1 should receive bob's join message
+        client1.read_line_assert_contains("bob joined").await?;
+
+        // Client 1 uses /help command
+        client1.send_line("/help").await?;
+
+        // Should see the help block
+        let help_words = ["", "quit", "help", "who", "action", "", "message", ""];
+        for word in help_words {
+            client1.read_line_assert_contains(word).await?;
+        }
+
+        // Client 2 should not have seen Client 1's help message
+        assert!(client2.read_line_assert_contains("").await.is_err());
+
+        // Client 2 should get the same block after using the /help command
+        client2.send_line("/help").await?;
+        for word in help_words {
+            client2.read_line_assert_contains(word).await?;
+        }
+
+        Ok(())
+    })
+}
+
+#[test]
 fn who_command_lists_online_users() -> Result<()> {
     tokio_test(async {
         let addr = spawn_test_server().await?;
@@ -257,13 +299,23 @@ fn who_command_lists_online_users() -> Result<()> {
             .read_line_assert_contains_all(&["Currently online:", "alice", "bob"])
             .await?;
 
-        // Client 2 uses /who command
-        client2.send_line("/who").await?;
+        // Client 2 should not have seen Client 1's listing
+        assert!(client2.read_line_assert_contains("").await.is_err());
 
-        // Should see same list
+        // Client 2 should get the same list after using the /help command
+        client2.send_line("/who").await?;
         client2
             .read_line_assert_contains_all(&["Currently online:", "alice", "bob"])
             .await?;
+
+        // Users who quit should not be included in the /who command listing
+        client1.send_line("/quit").await?;
+        client2.read_line_assert_contains("alice left").await?;
+        client2.send_line("/who").await?;
+        let who_listing = client2
+            .read_line_assert_contains("Currently online")
+            .await?;
+        assert!(!who_listing.contains("alice"));
 
         Ok(())
     })
