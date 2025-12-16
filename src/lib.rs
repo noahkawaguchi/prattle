@@ -19,22 +19,17 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Runs the chat server on the specified bind address.
 ///
-/// This function will:
-/// - Bind a TCP listener to the provided address
-/// - Accept incoming client connections
-/// - Broadcast messages between all connected clients
-/// - Handle graceful shutdown on receiving shutdown signals
+/// Specifically:
 ///
-/// # Arguments
-/// * `bind_addr` - The address to bind to (e.g., "127.0.0.1:8000")
+/// - Binds a TCP listener to the provided address
+/// - Accepts incoming client connections
+/// - Handles messages, commands, and broadcasting between clients
+/// - Gracefully shuts down upon receiving a shutdown signal
 ///
-/// # Example
-/// ```no_run
-/// #[tokio::main]
-/// async fn main() -> anyhow::Result<()> {
-///     prattle::run_server("127.0.0.1:8000").await
-/// }
-/// ```
+/// # Errors
+///
+/// Returns `Err` for any errors with the overall operation of the server, but logs and does not
+/// return errors from handling specific clients.
 pub async fn run_server(bind_addr: &str) -> Result<()> {
     let listener = TcpListener::bind(bind_addr).await?;
     println!("Listening on {bind_addr}");
