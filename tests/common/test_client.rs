@@ -111,6 +111,7 @@ impl TestClient {
     ///
     /// This is useful when other messages might be arbitrarily interleaved (e.g., "left the server"
     /// messages when multiple clients get disconnected at the same time during shutdown).
+    #[allow(dead_code)] // Not actually dead code
     pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
         let mut line = String::new();
         let deadline = Instant::now() + READ_TIMEOUT;
