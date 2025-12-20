@@ -3,6 +3,7 @@ pub mod test_client;
 use anyhow::{Context, Result};
 use std::time::Duration;
 use tokio::net::TcpListener;
+use tracing_subscriber::EnvFilter;
 
 /// Replaces `#[tokio::test]`, not inserting `#[allow(clippy::expect_used)]`.
 ///
@@ -18,14 +19,7 @@ pub fn tokio_test<F: Future<Output = Result<()>>>(f: F) -> Result<()> {
 
 /// Spawns the server on a random available port and returns the address.
 pub async fn spawn_test_server() -> Result<String> {
-    // Initialize tracing subscriber for tests (ignore error if already initialized)
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::builder()
-                .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
-                .from_env_lossy()
-        )
-        .try_init();
+    init_test_tracing();
 
     // Bind to port 0 to get a random available port and immediately drop the listener so the port
     // is available for the server to bind
@@ -48,4 +42,12 @@ pub async fn spawn_test_server() -> Result<String> {
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     Ok(addr)
+}
+
+/// Initializes a tracing subscriber for tests at the default "error" level (unless overridden by
+/// `RUST_LOG`), ignoring the error if the subscriber was already initialized.
+fn init_test_tracing() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env())
+        .try_init();
 }
