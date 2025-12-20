@@ -1,18 +1,21 @@
 use crate::command::{COMMAND_HELP, Command};
 use anyhow::Result;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     net::{
         TcpStream,
         tcp::{OwnedReadHalf, OwnedWriteHalf},
     },
     sync::{
         Mutex,
-        broadcast::{Receiver, Sender},
+        broadcast::{Receiver, Sender, error::RecvError},
     },
 };
-use tracing::{error, warn};
+use tracing::{error, info, warn};
+
+/// The time to wait for an individual client to close their connection during shutdown.
+const CLIENT_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(4);
 
 type Users = Arc<Mutex<HashSet<String>>>;
 
@@ -107,11 +110,7 @@ impl ClientHandler {
                 }
 
                 shutdown_result = self.shutdown_rx.recv() => {
-                    if let Err(e) = shutdown_result {
-                        error!("Error receiving shutdown signal for {username}: {e}");
-                    }
-
-                    self.writer.write_all(b"Server is shutting down\n").await?;
+                    self.handle_shutdown(username, shutdown_result).await;
                     break;
                 }
             }
@@ -156,5 +155,32 @@ impl ClientHandler {
         };
 
         Ok(should_quit)
+    }
+
+    /// Sends a shutdown message to the client and waits for them to close the connection, timing
+    /// out if they fail to disconnect gracefully. Logs any errors encountered instead of returning
+    /// them.
+    async fn handle_shutdown(&mut self, username: &str, signal_result: Result<(), RecvError>) {
+        if let Err(e) = signal_result {
+            error!("Error receiving shutdown signal for {username}: {e}");
+        }
+
+        if let Err(e) = self.writer.write_all(b"Server is shutting down\n").await {
+            error!("Error sending shutdown message to {username}: {e}");
+        }
+
+        let mut discard = Vec::new();
+
+        if tokio::time::timeout(
+            CLIENT_SHUTDOWN_TIMEOUT,
+            self.reader.read_to_end(&mut discard),
+        )
+        .await
+        .is_ok()
+        {
+            info!("{username} closed connection gracefully");
+        } else {
+            warn!("{username} did not close connection within timeout, forcing disconnect");
+        }
     }
 }
