@@ -1,13 +1,13 @@
 mod common;
 
-use crate::common::{spawn_test_server_with_shutdown, test_client::TestClient, tokio_test};
+use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::{Result, anyhow};
 use std::time::Duration;
 
 #[test]
 fn shutdown_broadcasts_to_all_connected_clients() -> Result<()> {
     tokio_test(async {
-        let (addr, shutdown_tx, _) = spawn_test_server_with_shutdown().await?;
+        let (addr, shutdown_tx, _) = test_server::spawn_with_shutdown().await?;
 
         // Connect three clients
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
@@ -46,7 +46,7 @@ fn shutdown_broadcasts_to_all_connected_clients() -> Result<()> {
 #[test]
 fn shutdown_waits_for_clients_to_disconnect_gracefully() -> Result<()> {
     tokio_test(async {
-        let (addr, shutdown_tx, server_handle) = spawn_test_server_with_shutdown().await?;
+        let (addr, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
 
         let mut client = TestClient::connect_with_username("alice", &addr).await?;
 
@@ -86,7 +86,7 @@ fn shutdown_waits_for_clients_to_disconnect_gracefully() -> Result<()> {
 #[test]
 fn shutdown_times_out_when_client_does_not_disconnect() -> Result<()> {
     tokio_test(async {
-        let (addr, shutdown_tx, server_handle) = spawn_test_server_with_shutdown().await?;
+        let (addr, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
 
         let mut client = TestClient::connect_with_username("alice", &addr).await?;
 
@@ -124,7 +124,7 @@ fn shutdown_times_out_when_client_does_not_disconnect() -> Result<()> {
 #[test]
 fn shutdown_proceeds_with_no_clients_ever() -> Result<()> {
     tokio_test(async {
-        let (_, shutdown_tx, server_handle) = spawn_test_server_with_shutdown().await?;
+        let (_, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
 
         // Don't connect any clients and trigger shutdown immediately
         shutdown_tx
@@ -147,7 +147,7 @@ fn shutdown_proceeds_with_no_clients_ever() -> Result<()> {
 #[test]
 fn shutdown_proceeds_if_all_clients_already_left() -> Result<()> {
     tokio_test(async {
-        let (addr, shutdown_tx, server_handle) = spawn_test_server_with_shutdown().await?;
+        let (addr, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
 
         // Connect two clients, drop them, and then shut down
         let client1 = TestClient::connect_with_username("alice", &addr).await?;
@@ -174,7 +174,7 @@ fn shutdown_proceeds_if_all_clients_already_left() -> Result<()> {
 #[test]
 fn server_stops_accepting_new_connections_during_graceful_shutdown() -> Result<()> {
     tokio_test(async {
-        let (addr, shutdown_tx, server_handle) = spawn_test_server_with_shutdown().await?;
+        let (addr, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
 
         shutdown_tx

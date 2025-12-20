@@ -1,12 +1,12 @@
 mod common;
 
-use crate::common::{spawn_test_server, test_client::TestClient, tokio_test};
+use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::Result;
 
 #[test]
 fn quit_command_sends_goodbye_message_and_broadcast() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
@@ -30,7 +30,7 @@ fn quit_command_sends_goodbye_message_and_broadcast() -> Result<()> {
 #[test]
 fn help_command_lists_usage() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
@@ -63,7 +63,7 @@ fn help_command_lists_usage() -> Result<()> {
 #[test]
 fn who_command_lists_online_users() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
@@ -104,7 +104,7 @@ fn who_command_lists_online_users() -> Result<()> {
 #[test]
 fn action_command_broadcasts_to_all_clients() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;

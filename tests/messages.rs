@@ -1,12 +1,12 @@
 mod common;
 
-use crate::common::{spawn_test_server, test_client::TestClient, tokio_test};
+use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::Result;
 
 #[test]
 fn client_messages_broadcast_to_all_clients() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
@@ -43,7 +43,7 @@ fn client_messages_broadcast_to_all_clients() -> Result<()> {
 #[test]
 fn multiple_clients_can_broadcast_messages() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
@@ -88,7 +88,7 @@ fn multiple_clients_can_broadcast_messages() -> Result<()> {
 #[test]
 fn empty_messages_are_ignored() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
 
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
         let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
