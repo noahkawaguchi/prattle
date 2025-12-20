@@ -18,6 +18,15 @@ pub fn tokio_test<F: Future<Output = Result<()>>>(f: F) -> Result<()> {
 
 /// Spawns the server on a random available port and returns the address.
 pub async fn spawn_test_server() -> Result<String> {
+    // Initialize tracing subscriber for tests (ignore error if already initialized)
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::builder()
+                .with_default_directive(tracing_subscriber::filter::LevelFilter::INFO.into())
+                .from_env_lossy()
+        )
+        .try_init();
+
     // Bind to port 0 to get a random available port and immediately drop the listener so the port
     // is available for the server to bind
     let addr = TcpListener::bind("127.0.0.1:0")
@@ -31,7 +40,7 @@ pub async fn spawn_test_server() -> Result<String> {
     // Spawn the server in a background task
     tokio::spawn(async move {
         if let Err(e) = prattle::run_server(&server_addr).await {
-            eprintln!("Error running test server: {e}");
+            tracing::error!("Error running test server: {e}");
         }
     });
 
