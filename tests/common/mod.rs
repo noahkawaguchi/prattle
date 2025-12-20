@@ -2,6 +2,11 @@ pub mod test_client;
 pub mod test_server;
 
 use anyhow::{Context, Result};
+use tracing::level_filters::LevelFilter;
+
+/// The log level to use when running tests, unless overridden by the `RUST_LOG` environment
+/// variable. Set to "off" to suppress error messages from expected errors.
+const TEST_LOG_LEVEL: LevelFilter = LevelFilter::OFF;
 
 /// Replaces `#[tokio::test]`, not inserting `#[allow(clippy::expect_used)]`.
 ///

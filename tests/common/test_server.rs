@@ -1,3 +1,4 @@
+use crate::common::TEST_LOG_LEVEL;
 use anyhow::Result;
 use std::time::Duration;
 use tokio::{
@@ -5,8 +6,6 @@ use tokio::{
     sync::oneshot::{self, Sender},
     task::JoinHandle,
 };
-use tracing::error;
-use tracing_subscriber::EnvFilter;
 
 /// Spawns the server on a random available port, returning the address, a `Sender` to send the
 /// shutdown signal, and a `JoinHandle` to the server task.
@@ -34,7 +33,8 @@ pub async fn spawn() -> Result<String> {
 async fn inner_spawn_with_shutdown(
     shutdown_signal: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(String, JoinHandle<()>)> {
-    init_test_tracing();
+    // Ignore the error if the tracing subscriber was already initialized in another test
+    let _ = prattle::logger::init_with_default(TEST_LOG_LEVEL);
 
     // Bind to port 0 to get a random available port and immediately drop the listener so the port
     // is available for the server to bind
@@ -49,7 +49,8 @@ async fn inner_spawn_with_shutdown(
     // Spawn the server in a background task
     let handle = tokio::spawn(async move {
         if let Err(e) = prattle::server::run(&server_addr, shutdown_signal).await {
-            error!("Error running test server: {e}");
+            // `eprintln!` instead of `error!` because logging may be off in tests
+            eprintln!("Error running test server: {e}");
         }
     });
 
@@ -57,12 +58,4 @@ async fn inner_spawn_with_shutdown(
     tokio::time::sleep(Duration::from_millis(100)).await;
 
     Ok((addr, handle))
-}
-
-/// Initializes a tracing subscriber for tests at the default "error" level (unless overridden by
-/// `RUST_LOG`), ignoring the error if the subscriber was already initialized.
-fn init_test_tracing() {
-    let _ = tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env())
-        .try_init();
 }
