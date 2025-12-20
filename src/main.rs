@@ -11,7 +11,10 @@ fn main() -> Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?
-        .block_on(prattle::run_server(&bind_addr))
+        .block_on(prattle::run_server(
+            &bind_addr,
+            prattle::shutdown_signal_handler()?,
+        ))
 }
 
 /// Installs a global tracing subscriber that defaults to `default_level` unless overridden by the

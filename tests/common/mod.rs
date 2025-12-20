@@ -3,6 +3,7 @@ pub mod test_client;
 use anyhow::{Context, Result};
 use std::time::Duration;
 use tokio::net::TcpListener;
+use tracing::error;
 use tracing_subscriber::EnvFilter;
 
 /// Replaces `#[tokio::test]`, not inserting `#[allow(clippy::expect_used)]`.
@@ -33,8 +34,13 @@ pub async fn spawn_test_server() -> Result<String> {
 
     // Spawn the server in a background task
     tokio::spawn(async move {
-        if let Err(e) = prattle::run_server(&server_addr).await {
-            tracing::error!("Error running test server: {e}");
+        match prattle::shutdown_signal_handler() {
+            Err(e) => error!("Error installing shutdown signal handler: {e}"),
+            Ok(shutdown_signal) => {
+                if let Err(e) = prattle::run_server(&server_addr, shutdown_signal).await {
+                    error!("Error running test server: {e}");
+                }
+            }
         }
     });
 

@@ -9,10 +9,7 @@ use std::{
 };
 use tokio::{
     net::TcpListener,
-    sync::{
-        Mutex,
-        broadcast::{self},
-    },
+    sync::{Mutex, broadcast},
 };
 use tracing::{error, info, warn};
 
@@ -22,7 +19,7 @@ const CHANNEL_CAP: usize = 100;
 /// The time to wait for clients to disconnect during graceful shutdown.
 const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Runs the chat server on the specified bind address.
+/// Runs the chat server on the specified bind address until receiving a shutdown signal.
 ///
 /// Specifically:
 ///
@@ -35,7 +32,7 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 ///
 /// Returns `Err` for any errors with the overall operation of the server, but logs and does not
 /// return errors from handling specific clients.
-pub async fn run_server(bind_addr: &str) -> Result<()> {
+pub async fn run_server(bind_addr: &str, shutdown_signal: impl Future<Output = ()>) -> Result<()> {
     let listener = TcpListener::bind(bind_addr).await?;
     info!("Listening on {bind_addr}");
 
@@ -43,7 +40,6 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
     let (shutdown_tx, _) = broadcast::channel(1);
     let users = Arc::new(Mutex::new(HashSet::new()));
 
-    let shutdown_signal = shutdown_signal_handler()?;
     tokio::pin!(shutdown_signal);
 
     if loop {
@@ -106,8 +102,13 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
 }
 
 /// Creates Unix signal handlers that listen for SIGINT and SIGTERM.
+///
+/// # Errors
+///
+/// Returns `Err` for errors installing the signal handlers, but logs and does not return errors
+/// receiving the signals.
 #[cfg(unix)]
-fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
+pub fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
     use tokio::signal::unix;
 
     let mut sigint = unix::signal(unix::SignalKind::interrupt())?;
@@ -134,9 +135,14 @@ fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
 }
 
 /// Creates a cross-platform signal handler that listens for Ctrl+C.
-#[allow(clippy::unnecessary_wraps)] // Wrapped in `Result` to match the Unix version
+///
+/// # Errors
+///
+/// Does not return `Err`. This function is only wrapped in `Result` to match the Unix version.
+/// Errors receiving Ctrl+C are logged, but not returned.
+#[allow(clippy::unnecessary_wraps)]
 #[cfg(not(unix))]
-fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
+pub fn shutdown_signal_handler() -> Result<impl Future<Output = ()>> {
     Ok(async {
         match tokio::signal::ctrl_c().await {
             Ok(()) => info!("Ctrl+C received, shutting down..."),
