@@ -6,7 +6,7 @@ use tokio::{
         TcpStream,
         tcp::{OwnedReadHalf, OwnedWriteHalf},
     },
-    time::timeout,
+    time::Instant,
 };
 
 /// The amount of time to wait when reading from the server.
@@ -77,7 +77,7 @@ impl TestClient {
             Ok(String::from_utf8_lossy(&buffer).to_string())
         };
 
-        timeout(READ_TIMEOUT, read_future)
+        tokio::time::timeout(READ_TIMEOUT, read_future)
             .await
             .context("Timeout reading prompt")?
     }
@@ -93,7 +93,7 @@ impl TestClient {
     pub async fn read_line_assert_contains_all(&mut self, expected: &[&str]) -> Result<String> {
         let mut line = String::new();
 
-        timeout(READ_TIMEOUT, self.reader.read_line(&mut line))
+        tokio::time::timeout(READ_TIMEOUT, self.reader.read_line(&mut line))
             .await
             .context("Timeout reading line")??;
 
@@ -105,5 +105,28 @@ impl TestClient {
         }
 
         Ok(line)
+    }
+
+    /// Reads lines from the server until one contains the expected substring, or times out.
+    ///
+    /// This is useful when other messages might be arbitrarily interleaved (e.g., "left the server"
+    /// messages when multiple clients get disconnected at the same time during shutdown).
+    pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
+        let mut line = String::new();
+        let deadline = Instant::now() + READ_TIMEOUT;
+
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+
+            tokio::time::timeout(remaining, self.reader.read_line(&mut line))
+                .await
+                .context("Timeout reading lines until match")??;
+
+            if line.contains(expected) {
+                break Ok(line);
+            }
+
+            line.clear();
+        }
     }
 }
