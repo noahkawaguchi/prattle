@@ -58,9 +58,12 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
                 let shutdown_rx = shutdown_tx.subscribe();
 
                 tokio::spawn(async move {
-                    match client::handle_client(socket, tx, rx, shutdown_rx, users_clone).await {
-                        Err(e) => error!("Error handling client {client_addr}: {e}"),
-                        Ok(()) => info!("Client {client_addr} disconnected"),
+                    if let Err(e) = client::handle_client(socket, tx, rx, shutdown_rx, users_clone)
+                        .await
+                    {
+                        error!("Error handling client {client_addr}: {e}");
+                    } else {
+                        info!("Client {client_addr} disconnected");
                     }
                 });
             }
@@ -72,7 +75,7 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
                         true
                     }
                     Err(e) if users.lock().await.is_empty() => {
-                        info!("No users online to broadcast shutdown to: {e}");
+                        warn!("No users online to broadcast shutdown to: {e}");
                         false
                     }
                     Err(e) => {
@@ -113,15 +116,17 @@ fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
     Ok(async move {
         tokio::select! {
             v = sigint.recv() => {
-                match v {
-                    Some(()) => info!("SIGINT received, shutting down..."),
-                    None => warn!("SIGINT stream ended unexpectedly, shutting down..."),
+                if v == Some(()) {
+                    info!("SIGINT received, shutting down...");
+                } else {
+                    warn!("SIGINT stream ended unexpectedly, shutting down...");
                 }
             }
             v = sigterm.recv() => {
-                match v {
-                    Some(()) => info!("SIGTERM received, shutting down..."),
-                    None => warn!("SIGTERM stream ended unexpectedly, shutting down..."),
+                if v == Some(()) {
+                    info!("SIGTERM received, shutting down...");
+                } else {
+                    warn!("SIGTERM stream ended unexpectedly, shutting down...");
                 }
             }
         }
