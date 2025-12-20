@@ -12,6 +12,7 @@ use tokio::{
         broadcast::{Receiver, Sender},
     },
 };
+use tracing::{error, warn};
 
 type Users = Arc<Mutex<HashSet<String>>>;
 
@@ -78,7 +79,7 @@ impl ClientHandler {
         self.users.lock().await.remove(&username);
 
         if let Err(e) = self.tx.send(format!("* {username} left the server\n")) {
-            eprintln!("Failed to broadcast that {username} left: {e}");
+            warn!("Failed to broadcast that {username} left: {e}");
         }
 
         result
@@ -107,7 +108,7 @@ impl ClientHandler {
 
                 shutdown_result = self.shutdown_rx.recv() => {
                     if let Err(e) = shutdown_result {
-                        eprintln!("Error receiving shutdown signal for {username}: {e}");
+                        error!("Error receiving shutdown signal for {username}: {e}");
                     }
 
                     self.writer.write_all(b"Server is shutting down\n").await?;

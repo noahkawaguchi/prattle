@@ -14,6 +14,7 @@ use tokio::{
         broadcast::{self},
     },
 };
+use tracing::{error, info, warn};
 
 /// The number of messages that can be held in the channel.
 const CHANNEL_CAP: usize = 100;
@@ -36,7 +37,7 @@ const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 /// return errors from handling specific clients.
 pub async fn run_server(bind_addr: &str) -> Result<()> {
     let listener = TcpListener::bind(bind_addr).await?;
-    println!("Listening on {bind_addr}");
+    info!("Listening on {bind_addr}");
 
     let (sender, _) = broadcast::channel(CHANNEL_CAP);
     let (shutdown_tx, _) = broadcast::channel(1);
@@ -49,7 +50,7 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
         tokio::select! {
             conn_result = listener.accept() => {
                 let (socket, client_addr) = conn_result?;
-                println!("New connection from {client_addr}");
+                info!("New connection from {client_addr}");
 
                 let tx = sender.clone();
                 let rx = tx.subscribe();
@@ -57,9 +58,12 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
                 let shutdown_rx = shutdown_tx.subscribe();
 
                 tokio::spawn(async move {
-                    match client::handle_client(socket, tx, rx, shutdown_rx, users_clone).await {
-                        Err(e) => eprintln!("Error handling client {client_addr}: {e}"),
-                        Ok(()) => println!("Client {client_addr} disconnected"),
+                    if let Err(e) = client::handle_client(socket, tx, rx, shutdown_rx, users_clone)
+                        .await
+                    {
+                        error!("Error handling client {client_addr}: {e}");
+                    } else {
+                        info!("Client {client_addr} disconnected");
                     }
                 });
             }
@@ -67,29 +71,29 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
             () = &mut shutdown_signal => {
                 break match shutdown_tx.send(()) {
                     Ok(receivers) => {
-                        println!("Broadcast shutdown to {receivers} client(s)");
+                        info!("Broadcast shutdown to {receivers} client(s)");
                         true
                     }
                     Err(e) if users.lock().await.is_empty() => {
-                        println!("No users online to broadcast shutdown to: {e}");
+                        warn!("No users online to broadcast shutdown to: {e}");
                         false
                     }
                     Err(e) => {
-                        eprintln!("Failed to broadcast shutdown with users online: {e}");
+                        error!("Failed to broadcast shutdown with users online: {e}");
                         false
                     }
                 }
             }
         }
     } {
-        println!("Waiting for clients to disconnect");
+        info!("Waiting for clients to disconnect");
 
         let start = Instant::now();
 
         while !users.lock().await.is_empty() {
             if start.elapsed() >= SHUTDOWN_TIMEOUT {
                 let remaining = users.lock().await.len();
-                println!("Shutdown timeout reached with {remaining} client(s) still connected");
+                warn!("Shutdown timeout reached with {remaining} client(s) still connected");
                 break;
             }
 
@@ -97,7 +101,7 @@ pub async fn run_server(bind_addr: &str) -> Result<()> {
         }
     }
 
-    println!("Server shutting down now");
+    info!("Server shutting down now");
     Ok(())
 }
 
@@ -112,15 +116,17 @@ fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
     Ok(async move {
         tokio::select! {
             v = sigint.recv() => {
-                match v {
-                    Some(()) => println!("\nSIGINT received, shutting down..."),
-                    None => eprintln!("\nSIGINT stream ended unexpectedly, shutting down..."),
+                if v == Some(()) {
+                    info!("SIGINT received, shutting down...");
+                } else {
+                    warn!("SIGINT stream ended unexpectedly, shutting down...");
                 }
             }
             v = sigterm.recv() => {
-                match v {
-                    Some(()) => println!("SIGTERM received, shutting down..."),
-                    None => eprintln!("SIGTERM stream ended unexpectedly, shutting down..."),
+                if v == Some(()) {
+                    info!("SIGTERM received, shutting down...");
+                } else {
+                    warn!("SIGTERM stream ended unexpectedly, shutting down...");
                 }
             }
         }
@@ -133,8 +139,8 @@ fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
 fn shutdown_signal_handler() -> Result<impl std::future::Future<Output = ()>> {
     Ok(async {
         match tokio::signal::ctrl_c().await {
-            Ok(()) => println!("\nCtrl+C received, shutting down..."),
-            Err(e) => eprintln!("\nCtrl+C handler error, shutting down: {e}"),
+            Ok(()) => info!("Ctrl+C received, shutting down..."),
+            Err(e) => warn!("Ctrl+C handler error, shutting down: {e}"),
         }
     })
 }
