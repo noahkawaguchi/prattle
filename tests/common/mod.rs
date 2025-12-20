@@ -34,10 +34,10 @@ pub async fn spawn_test_server() -> Result<String> {
 
     // Spawn the server in a background task
     tokio::spawn(async move {
-        match prattle::shutdown_signal_handler() {
+        match prattle::shutdown_signal::listen() {
             Err(e) => error!("Error installing shutdown signal handler: {e}"),
             Ok(shutdown_signal) => {
-                if let Err(e) = prattle::run_server(&server_addr, shutdown_signal).await {
+                if let Err(e) = prattle::server::run(&server_addr, shutdown_signal).await {
                     error!("Error running test server: {e}");
                 }
             }
