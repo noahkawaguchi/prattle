@@ -5,11 +5,7 @@ use crate::{
 use anyhow::Result;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    net::{
-        TcpStream,
-        tcp::{OwnedReadHalf, OwnedWriteHalf},
-    },
+    io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{
         Mutex,
         broadcast::{Receiver, Sender, error::RecvError},
@@ -23,14 +19,17 @@ const CLIENT_SHUTDOWN_TIMEOUT: Duration =
 
 type Users = Arc<Mutex<HashSet<String>>>;
 
-pub async fn handle_client(
-    socket: TcpStream,
+pub async fn handle_client<S>(
+    socket: S,
     tx: Sender<String>,
     rx: Receiver<String>,
     shutdown_rx: Receiver<()>,
     users: Users,
-) -> Result<()> {
-    let (reader, writer) = socket.into_split();
+) -> Result<()>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    let (reader, writer) = tokio::io::split(socket);
 
     let mut handler =
         ClientHandler { reader: BufReader::new(reader), writer, tx, rx, shutdown_rx, users };
@@ -38,16 +37,20 @@ pub async fn handle_client(
     handler.run().await
 }
 
-struct ClientHandler {
-    reader: BufReader<OwnedReadHalf>,
-    writer: OwnedWriteHalf,
+struct ClientHandler<R, W> {
+    reader: BufReader<R>,
+    writer: W,
     tx: Sender<String>,
     rx: Receiver<String>,
     shutdown_rx: Receiver<()>,
     users: Users,
 }
 
-impl ClientHandler {
+impl<R, W> ClientHandler<R, W>
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
     async fn run(&mut self) -> Result<()> {
         let mut line = String::new();
 
