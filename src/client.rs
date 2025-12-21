@@ -29,12 +29,36 @@ pub async fn handle_client<S>(
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
-    let (reader, writer) = tokio::io::split(socket);
+    let (inner_reader, mut writer) = tokio::io::split(socket);
+    let mut reader = BufReader::new(inner_reader);
 
-    let mut handler =
-        ClientHandler { reader: BufReader::new(reader), writer, tx, rx, shutdown_rx, users };
+    let mut line = String::new();
 
-    handler.run().await
+    let username = loop {
+        writer.write_all(b"Choose a username: ").await?;
+        reader.read_line(&mut line).await?;
+        let read_username = line.trim().to_string();
+        line.clear();
+
+        if read_username.is_empty() {
+            writer.write_all(b"Username cannot be empty\n").await?;
+        } else {
+            let mut users_guard = users.lock().await;
+
+            if users_guard.contains(&read_username) {
+                drop(users_guard);
+                writer.write_all(b"Username taken\n").await?;
+            } else {
+                users_guard.insert(read_username.clone());
+                drop(users_guard);
+                break read_username;
+            }
+        }
+    };
+
+    ClientHandler { reader, writer, tx, rx, shutdown_rx, username, users }
+        .run()
+        .await
 }
 
 struct ClientHandler<R, W> {
@@ -43,6 +67,7 @@ struct ClientHandler<R, W> {
     tx: Sender<String>,
     rx: Receiver<String>,
     shutdown_rx: Receiver<()>,
+    username: String,
     users: Users,
 }
 
@@ -52,50 +77,34 @@ where
     W: AsyncWrite + Unpin,
 {
     async fn run(&mut self) -> Result<()> {
-        let mut line = String::new();
-
-        let username = loop {
-            self.writer.write_all(b"Choose a username: ").await?;
-            self.reader.read_line(&mut line).await?;
-            let read_username = line.trim().to_string();
-            line.clear();
-
-            if read_username.is_empty() {
-                self.writer.write_all(b"Username cannot be empty\n").await?;
-            } else {
-                let mut users_guard = self.users.lock().await;
-
-                if users_guard.contains(&read_username) {
-                    drop(users_guard);
-                    self.writer.write_all(b"Username taken\n").await?;
-                } else {
-                    users_guard.insert(read_username.clone());
-                    drop(users_guard);
-                    break read_username;
-                }
-            }
-        };
-
         self.writer
             .write_all(
-                format!("Hi {username}, welcome to Prattle! (Send /help for help)\n").as_bytes(),
+                format!(
+                    "Hi {}, welcome to Prattle! (Send /help for help)\n",
+                    self.username
+                )
+                .as_bytes(),
             )
             .await?;
 
-        self.tx.send(format!("* {username} joined the server\n"))?;
+        self.tx
+            .send(format!("* {} joined the server\n", self.username))?;
 
-        let result = self.command_loop(&username).await;
+        let result = self.command_loop().await;
 
-        self.users.lock().await.remove(&username);
+        self.users.lock().await.remove(&self.username);
 
-        if let Err(e) = self.tx.send(format!("* {username} left the server\n")) {
-            warn!("Failed to broadcast that {username} left: {e}");
+        if let Err(e) = self
+            .tx
+            .send(format!("* {} left the server\n", self.username))
+        {
+            warn!("Failed to broadcast that {} left: {e}", self.username);
         }
 
         result
     }
 
-    async fn command_loop(&mut self, username: &str) -> Result<()> {
+    async fn command_loop(&mut self) -> Result<()> {
         let mut line = String::new();
 
         loop {
@@ -109,7 +118,7 @@ where
                         break;
                     }
 
-                    if self.run_command(Command::parse(&line), username).await? {
+                    if self.run_command(Command::parse(&line)).await? {
                         break;
                     }
 
@@ -117,7 +126,7 @@ where
                 }
 
                 shutdown_result = self.shutdown_rx.recv() => {
-                    self.handle_shutdown(username, shutdown_result).await;
+                    self.handle_shutdown(shutdown_result).await;
                     break;
                 }
             }
@@ -127,7 +136,7 @@ where
     }
 
     /// Runs the command or sends the message, returning `Ok(true)` to quit.
-    async fn run_command(&mut self, command: Command<'_>, username: &str) -> Result<bool> {
+    async fn run_command(&mut self, command: Command<'_>) -> Result<bool> {
         let should_quit = match command {
             Command::Empty => false,
 
@@ -135,7 +144,10 @@ where
                 self.writer.write_all(b"Goodbye for now!\n").await?;
 
                 if let Err(e) = self.writer.shutdown().await {
-                    warn!("Error shutting down output stream for {username}: {e}");
+                    warn!(
+                        "Error shutting down output stream for {}: {e}",
+                        self.username
+                    );
                 }
 
                 true
@@ -156,12 +168,12 @@ where
             }
 
             Command::Action(action) => {
-                self.tx.send(format!("* {username} {action}\n"))?;
+                self.tx.send(format!("* {} {action}\n", self.username))?;
                 false
             }
 
             Command::Msg(msg) => {
-                self.tx.send(format!("{username}: {msg}\n"))?;
+                self.tx.send(format!("{}: {msg}\n", self.username))?;
                 false
             }
         };
@@ -172,18 +184,21 @@ where
     /// Sends a shutdown message to the client and waits for them to close the connection, timing
     /// out if they fail to disconnect gracefully. Logs any errors encountered instead of returning
     /// them.
-    async fn handle_shutdown(&mut self, username: &str, signal_result: Result<(), RecvError>) {
+    async fn handle_shutdown(&mut self, signal_result: Result<(), RecvError>) {
         if let Err(e) = signal_result {
-            error!("Error receiving shutdown signal for {username}: {e}");
+            error!("Error receiving shutdown signal for {}: {e}", self.username);
         }
 
         if let Err(e) = self.writer.write_all(b"Server is shutting down\n").await {
-            error!("Error sending shutdown message to {username}: {e}");
+            error!("Error sending shutdown message to {}: {e}", self.username);
         }
 
         // Close the write side
         if let Err(e) = self.writer.shutdown().await {
-            warn!("Error shutting down output stream for {username}: {e}");
+            warn!(
+                "Error shutting down output stream for {}: {e}",
+                self.username
+            );
         }
 
         let mut discard = Vec::new();
@@ -196,10 +211,11 @@ where
         .await
         .is_ok_and(|read_res| read_res.is_ok())
         {
-            info!("{username} closed connection gracefully");
+            info!("{} closed connection gracefully", self.username);
         } else {
             warn!(
-                "{username} did not close connection gracefully within timeout, forcing disconnect"
+                "{} did not close connection gracefully within timeout, forcing disconnect",
+                self.username
             );
         }
     }
