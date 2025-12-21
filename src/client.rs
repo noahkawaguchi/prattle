@@ -8,13 +8,13 @@ use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{
         Mutex,
-        broadcast::{Receiver, Sender, error::RecvError},
+        broadcast::{Receiver, Sender},
     },
 };
 use tracing::{error, info, warn};
 
-/// The time to wait for an individual client to close their connection during graceful shutdown.
-const CLIENT_SHUTDOWN_TIMEOUT: Duration =
+/// The time to wait for a client to close their connection before forcefully disconnecting.
+const CLIENT_DISCONNECT_TIMEOUT: Duration =
     GLOBAL_SHUTDOWN_TIMEOUT.saturating_sub(Duration::from_secs(1));
 
 type Users = Arc<Mutex<HashSet<String>>>;
@@ -126,7 +126,16 @@ where
                 }
 
                 shutdown_result = self.shutdown_rx.recv() => {
-                    self.handle_shutdown(shutdown_result).await;
+                    if let Err(e) = shutdown_result {
+                        error!("Error receiving shutdown signal for {}: {e}", self.username);
+                    }
+
+                    if let Err(e) = self.writer.write_all(b"Server is shutting down\n").await {
+                        error!("Error sending shutdown message to {}: {e}", self.username);
+                    }
+
+                    self.graceful_disconnect().await;
+
                     break;
                 }
             }
@@ -141,14 +150,11 @@ where
             Command::Empty => false,
 
             Command::Quit => {
-                self.writer.write_all(b"Goodbye for now!\n").await?;
-
-                if let Err(e) = self.writer.shutdown().await {
-                    warn!(
-                        "Error shutting down output stream for {}: {e}",
-                        self.username
-                    );
+                if let Err(e) = self.writer.write_all(b"Goodbye for now!\n").await {
+                    error!("Error sending goodbye message to {}: {e}", self.username);
                 }
+
+                self.graceful_disconnect().await;
 
                 true
             }
@@ -181,21 +187,12 @@ where
         Ok(should_quit)
     }
 
-    /// Sends a shutdown message to the client and waits for them to close the connection, timing
-    /// out if they fail to disconnect gracefully. Logs any errors encountered instead of returning
-    /// them.
-    async fn handle_shutdown(&mut self, signal_result: Result<(), RecvError>) {
-        if let Err(e) = signal_result {
-            error!("Error receiving shutdown signal for {}: {e}", self.username);
-        }
-
-        if let Err(e) = self.writer.write_all(b"Server is shutting down\n").await {
-            error!("Error sending shutdown message to {}: {e}", self.username);
-        }
-
+    /// Shuts down the output stream and waits for the client to close the connection, timing out if
+    /// they fail to disconnect gracefully. Logs any errors encountered instead of returning them.
+    async fn graceful_disconnect(&mut self) {
         // Close the write side
         if let Err(e) = self.writer.shutdown().await {
-            warn!(
+            error!(
                 "Error shutting down output stream for {}: {e}",
                 self.username
             );
@@ -205,7 +202,7 @@ where
 
         // Wait for the read side to be closed by the client or time out
         if tokio::time::timeout(
-            CLIENT_SHUTDOWN_TIMEOUT,
+            CLIENT_DISCONNECT_TIMEOUT,
             self.reader.read_to_end(&mut discard),
         )
         .await
