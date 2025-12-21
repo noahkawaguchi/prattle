@@ -49,7 +49,7 @@ async fn inner_spawn_with_shutdown(
     let server_addr = addr.clone();
 
     // Create TLS configuration for the test server
-    let tls_config = prattle::tls::create_tls_config()?;
+    let tls_config = prattle::tls::create_config()?;
 
     // Spawn the server in a background task
     let handle = tokio::spawn(async move {

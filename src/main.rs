@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
 
             prattle::server::run(
                 &std::env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000")),
-                prattle::tls::create_tls_config()?,
+                prattle::tls::create_config()?,
                 prattle::shutdown_signal::listen()?,
             )
             .await

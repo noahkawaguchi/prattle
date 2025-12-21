@@ -41,7 +41,7 @@ fn generate_self_signed_cert() -> Result<(CertificateDer<'static>, PrivateKeyDer
 /// # Errors
 ///
 /// Returns `Err` if cert generation or config creation fails.
-pub fn create_tls_config() -> Result<Arc<ServerConfig>> {
+pub fn create_config() -> Result<Arc<ServerConfig>> {
     let (cert, key) = generate_self_signed_cert()?;
 
     // Configure to use the self-signed cert and not to require client certificates
