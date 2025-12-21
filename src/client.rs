@@ -133,6 +133,11 @@ where
 
             Command::Quit => {
                 self.writer.write_all(b"Goodbye for now!\n").await?;
+
+                if let Err(e) = self.writer.shutdown().await {
+                    warn!("Error shutting down output stream for {username}: {e}");
+                }
+
                 true
             }
 
@@ -176,18 +181,26 @@ where
             error!("Error sending shutdown message to {username}: {e}");
         }
 
+        // Close the write side
+        if let Err(e) = self.writer.shutdown().await {
+            warn!("Error shutting down output stream for {username}: {e}");
+        }
+
         let mut discard = Vec::new();
 
+        // Wait for the read side to be closed by the client or time out
         if tokio::time::timeout(
             CLIENT_SHUTDOWN_TIMEOUT,
             self.reader.read_to_end(&mut discard),
         )
         .await
-        .is_ok()
+        .is_ok_and(|read_res| read_res.is_ok())
         {
             info!("{username} closed connection gracefully");
         } else {
-            warn!("{username} did not close connection within timeout, forcing disconnect");
+            warn!(
+                "{username} did not close connection gracefully within timeout, forcing disconnect"
+            );
         }
     }
 }
