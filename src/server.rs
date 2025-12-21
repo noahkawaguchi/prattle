@@ -14,8 +14,8 @@ use tracing::{error, info, warn};
 /// The number of messages that can be held in the channel.
 const CHANNEL_CAP: usize = 100;
 
-/// The time to wait for clients to disconnect during graceful shutdown.
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+/// The time to wait for all clients to disconnect during graceful shutdown.
+pub(crate) const GLOBAL_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Runs the chat server on the specified bind address until receiving a shutdown signal.
 ///
@@ -85,9 +85,9 @@ pub async fn run(bind_addr: &str, shutdown_signal: impl Future<Output = ()>) -> 
         let start = Instant::now();
 
         while !users.lock().await.is_empty() {
-            if start.elapsed() >= SHUTDOWN_TIMEOUT {
+            if start.elapsed() >= GLOBAL_SHUTDOWN_TIMEOUT {
                 let remaining = users.lock().await.len();
-                warn!("Shutdown timeout reached with {remaining} client(s) still connected");
+                warn!("Global shutdown timeout reached with {remaining} client(s) still connected");
                 break;
             }
 

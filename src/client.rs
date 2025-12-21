@@ -1,4 +1,7 @@
-use crate::command::{COMMAND_HELP, Command};
+use crate::{
+    command::{COMMAND_HELP, Command},
+    server::GLOBAL_SHUTDOWN_TIMEOUT,
+};
 use anyhow::Result;
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{
@@ -14,8 +17,9 @@ use tokio::{
 };
 use tracing::{error, info, warn};
 
-/// The time to wait for an individual client to close their connection during shutdown.
-const CLIENT_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(4);
+/// The time to wait for an individual client to close their connection during graceful shutdown.
+const CLIENT_SHUTDOWN_TIMEOUT: Duration =
+    GLOBAL_SHUTDOWN_TIMEOUT.saturating_sub(Duration::from_secs(1));
 
 type Users = Arc<Mutex<HashSet<String>>>;
 
