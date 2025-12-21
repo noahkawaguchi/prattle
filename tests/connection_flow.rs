@@ -1,12 +1,12 @@
 mod common;
 
-use crate::common::{spawn_test_server, test_client::TestClient, tokio_test};
+use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::Result;
 
 #[test]
 fn client_can_connect() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
         TestClient::connect_with_username("alice", &addr).await?;
         Ok(())
     })
@@ -15,7 +15,7 @@ fn client_can_connect() -> Result<()> {
 #[test]
 fn empty_usernames_are_rejected() -> Result<()> {
     tokio_test(async {
-        let mut client = TestClient::connect(&spawn_test_server().await?).await?;
+        let mut client = TestClient::connect(&test_server::spawn().await?).await?;
 
         // Send empty usernames and expect error messages
         for empty_username in [" ", "   ", "", "　", "\t"] {
@@ -39,7 +39,7 @@ fn empty_usernames_are_rejected() -> Result<()> {
 #[test]
 fn duplicate_usernames_are_rejected() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
         let _client1 = TestClient::connect_with_username("alice", &addr).await?;
 
         // Try to connect with same username
@@ -66,7 +66,7 @@ fn duplicate_usernames_are_rejected() -> Result<()> {
 #[test]
 fn join_message_broadcasts_to_all_clients() -> Result<()> {
     tokio_test(async {
-        let addr = spawn_test_server().await?;
+        let addr = test_server::spawn().await?;
         let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
 
         // When client 2 connects, client 1 should see the join message
