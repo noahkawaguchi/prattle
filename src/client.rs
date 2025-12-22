@@ -17,6 +17,9 @@ use tracing::{error, info, warn};
 const CLIENT_DISCONNECT_TIMEOUT: Duration =
     GLOBAL_SHUTDOWN_TIMEOUT.saturating_sub(Duration::from_secs(1));
 
+/// The placeholder username to use if a client has not yet chosen a username.
+const UNKNOWN_USERNAME: &str = "[unknown]";
+
 type Users = Arc<Mutex<HashSet<String>>>;
 
 pub async fn handle_client<S>(
@@ -41,13 +44,11 @@ where
                     error!("Error receiving shutdown signal during username selection: {e}");
                 }
 
-                if let Err(e) = writer.write_all(b"\nServer is shutting down\n").await {
-                    error!("Error sending shutdown message during username selection: {e}");
-                }
-
-                graceful_disconnect(&mut reader, &mut writer, "[unknown]").await;
-
-                return Ok(());
+                // Attempt graceful disconnect regardless of the write result, but still report
+                // write errors to the main server loop
+                let write_res = writer.write_all(b"\nServer is shutting down\n").await;
+                graceful_disconnect(&mut reader, &mut writer, UNKNOWN_USERNAME).await;
+                return write_res.map_err(Into::into);
             }
 
             read_result = async {
@@ -135,7 +136,7 @@ where
         self.tx
             .send(format!("* {} joined the server\n", self.username))?;
 
-        let result = self.command_loop().await;
+        let loop_res = self.command_loop().await;
 
         self.users.lock().await.remove(&self.username);
 
@@ -146,7 +147,7 @@ where
             warn!("Failed to broadcast that {} left: {e}", self.username);
         }
 
-        result
+        loop_res
     }
 
     async fn command_loop(&mut self) -> Result<()> {
@@ -160,13 +161,22 @@ where
 
                 bytes_read_result = self.reader.read_line(&mut line) => {
                     if bytes_read_result? == 0 {
-                        break;
+                        warn!("Received EOF from {} without proper disconnection", self.username);
+                        break Ok(());
                     }
 
-                    if self.run_command(Command::parse(&line)).await? {
-                        break;
+                    // Run the command, perform graceful disconnect if necessary, then handle the
+                    // result of running the command
+                    let command = Command::parse(&line);
+                    let cmd_res = self.run_command(&command).await;
+
+                    if command == Command::Quit {
+                        graceful_disconnect(&mut self.reader, &mut self.writer, &self.username)
+                            .await;
+                        break cmd_res;
                     }
 
+                    cmd_res?;
                     line.clear();
                 }
 
@@ -175,40 +185,25 @@ where
                         error!("Error receiving shutdown signal for {}: {e}", self.username);
                     }
 
-                    if let Err(e) = self.writer.write_all(b"Server is shutting down\n").await {
-                        error!("Error sending shutdown message to {}: {e}", self.username);
-                    }
-
-                    graceful_disconnect(&mut self.reader, &mut self.writer, &self.username)
-                        .await;
-
-                    break;
+                    // Attempt graceful disconnect regardless of the write result, but still report
+                    // write errors to the main server loop
+                    let write_res = self.writer.write_all(b"Server is shutting down\n").await;
+                    graceful_disconnect(&mut self.reader, &mut self.writer, &self.username).await;
+                    break write_res.map_err(Into::into);
                 }
             }
         }
-
-        Ok(())
     }
 
-    /// Runs the command or sends the message, returning `Ok(true)` to quit.
-    async fn run_command(&mut self, command: Command<'_>) -> Result<bool> {
-        let should_quit = match command {
-            Command::Empty => false,
+    /// Runs the specified command or sends the specified message.
+    async fn run_command(&mut self, command: &Command<'_>) -> Result<()> {
+        match command {
+            Command::Empty => {}
 
-            Command::Quit => {
-                if let Err(e) = self.writer.write_all(b"Goodbye for now!\n").await {
-                    error!("Error sending goodbye message to {}: {e}", self.username);
-                }
+            // Actually quitting is handled in the main loop
+            Command::Quit => self.writer.write_all(b"Goodbye for now!\n").await?,
 
-                graceful_disconnect(&mut self.reader, &mut self.writer, &self.username).await;
-
-                true
-            }
-
-            Command::Help => {
-                self.writer.write_all(COMMAND_HELP).await?;
-                false
-            }
+            Command::Help => self.writer.write_all(COMMAND_HELP).await?,
 
             Command::Who => {
                 let users_guard = self.users.lock().await;
@@ -216,20 +211,17 @@ where
                 let msg = format!("Currently online: {}\n", list.join(", "));
                 drop(users_guard);
                 self.writer.write_all(msg.as_bytes()).await?;
-                false
             }
 
             Command::Action(action) => {
                 self.tx.send(format!("* {} {action}\n", self.username))?;
-                false
             }
 
             Command::Msg(msg) => {
                 self.tx.send(format!("{}: {msg}\n", self.username))?;
-                false
             }
-        };
+        }
 
-        Ok(should_quit)
+        Ok(())
     }
 }
