@@ -23,7 +23,7 @@ pub async fn handle_client<S>(
     socket: S,
     tx: Sender<String>,
     rx: Receiver<String>,
-    shutdown_rx: Receiver<()>,
+    mut shutdown_rx: Receiver<()>,
     users: Users,
 ) -> Result<()>
 where
@@ -35,23 +35,43 @@ where
     let mut line = String::new();
 
     let username = loop {
-        writer.write_all(b"Choose a username: ").await?;
-        reader.read_line(&mut line).await?;
-        let read_username = line.trim().to_string();
-        line.clear();
+        tokio::select! {
+            shutdown_result = shutdown_rx.recv() => {
+                if let Err(e) = shutdown_result {
+                    error!("Error receiving shutdown signal during username selection: {e}");
+                }
 
-        if read_username.is_empty() {
-            writer.write_all(b"Username cannot be empty\n").await?;
-        } else {
-            let mut users_guard = users.lock().await;
+                if let Err(e) = writer.write_all(b"\nServer is shutting down\n").await {
+                    error!("Error sending shutdown message during username selection: {e}");
+                }
 
-            if users_guard.contains(&read_username) {
-                drop(users_guard);
-                writer.write_all(b"Username taken\n").await?;
-            } else {
-                users_guard.insert(read_username.clone());
-                drop(users_guard);
-                break read_username;
+                graceful_disconnect(&mut reader, &mut writer, "[unknown]").await;
+
+                return Ok(());
+            }
+
+            read_result = async {
+                writer.write_all(b"Choose a username: ").await?;
+                reader.read_line(&mut line).await
+            } => {
+                read_result?;
+                let read_username = line.trim().to_string();
+                line.clear();
+
+                if read_username.is_empty() {
+                    writer.write_all(b"Username cannot be empty\n").await?;
+                } else {
+                    let mut users_guard = users.lock().await;
+
+                    if users_guard.contains(&read_username) {
+                        drop(users_guard);
+                        writer.write_all(b"Username taken\n").await?;
+                    } else {
+                        users_guard.insert(read_username.clone());
+                        drop(users_guard);
+                        break read_username;
+                    }
+                }
             }
         }
     };
@@ -59,6 +79,31 @@ where
     ClientHandler { reader, writer, tx, rx, shutdown_rx, username, users }
         .run()
         .await
+}
+
+/// Shuts down the output stream and waits for the client to close the connection, timing out if
+/// they fail to disconnect gracefully. Logs any errors encountered instead of returning them.
+async fn graceful_disconnect<R, W>(reader: &mut BufReader<R>, writer: &mut W, username: &str)
+where
+    R: AsyncRead + Unpin,
+    W: AsyncWrite + Unpin,
+{
+    // Close the write side
+    if let Err(e) = writer.shutdown().await {
+        error!("Error shutting down output stream for {username}: {e}");
+    }
+
+    let mut discard = Vec::new();
+
+    // Wait for the read side to be closed by the client or time out
+    if tokio::time::timeout(CLIENT_DISCONNECT_TIMEOUT, reader.read_to_end(&mut discard))
+        .await
+        .is_ok_and(|read_res| read_res.is_ok())
+    {
+        info!("{username} closed connection gracefully");
+    } else {
+        warn!("{username} did not close connection gracefully within timeout, forcing disconnect");
+    }
 }
 
 struct ClientHandler<R, W> {
@@ -134,7 +179,8 @@ where
                         error!("Error sending shutdown message to {}: {e}", self.username);
                     }
 
-                    self.graceful_disconnect().await;
+                    graceful_disconnect(&mut self.reader, &mut self.writer, &self.username)
+                        .await;
 
                     break;
                 }
@@ -154,7 +200,7 @@ where
                     error!("Error sending goodbye message to {}: {e}", self.username);
                 }
 
-                self.graceful_disconnect().await;
+                graceful_disconnect(&mut self.reader, &mut self.writer, &self.username).await;
 
                 true
             }
@@ -185,35 +231,5 @@ where
         };
 
         Ok(should_quit)
-    }
-
-    /// Shuts down the output stream and waits for the client to close the connection, timing out if
-    /// they fail to disconnect gracefully. Logs any errors encountered instead of returning them.
-    async fn graceful_disconnect(&mut self) {
-        // Close the write side
-        if let Err(e) = self.writer.shutdown().await {
-            error!(
-                "Error shutting down output stream for {}: {e}",
-                self.username
-            );
-        }
-
-        let mut discard = Vec::new();
-
-        // Wait for the read side to be closed by the client or time out
-        if tokio::time::timeout(
-            CLIENT_DISCONNECT_TIMEOUT,
-            self.reader.read_to_end(&mut discard),
-        )
-        .await
-        .is_ok_and(|read_res| read_res.is_ok())
-        {
-            info!("{} closed connection gracefully", self.username);
-        } else {
-            warn!(
-                "{} did not close connection gracefully within timeout, forcing disconnect",
-                self.username
-            );
-        }
     }
 }
