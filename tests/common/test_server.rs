@@ -48,9 +48,12 @@ async fn inner_spawn_with_shutdown(
     // Clone addr for the spawned task
     let server_addr = addr.clone();
 
+    // Create TLS configuration for the test server
+    let tls_config = prattle::tls::create_config()?;
+
     // Spawn the server in a background task
     let handle = tokio::spawn(async move {
-        if let Err(e) = prattle::server::run(&server_addr, shutdown_signal).await {
+        if let Err(e) = prattle::server::run(&server_addr, tls_config, shutdown_signal).await {
             // `eprintln!` instead of `error!` because logging may be off in tests
             eprintln!("Error running test server: {e}");
         }

@@ -1,28 +1,58 @@
-use anyhow::{Context, Result};
-use std::time::Duration;
+use crate::common::insecure_test_tls::InsecureTestVerification;
+use anyhow::{Context, Result, anyhow};
+use rustls::pki_types::ServerName;
+use std::{sync::Arc, time::Duration};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
-    net::{
-        TcpStream,
-        tcp::{OwnedReadHalf, OwnedWriteHalf},
+    io::{
+        AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf,
+        WriteHalf,
     },
+    net::TcpStream,
     time::Instant,
 };
+use tokio_rustls::{TlsConnector, client::TlsStream, rustls::ClientConfig};
+
+/// The amount of time to wait when connecting to the server.
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 
 /// The amount of time to wait when reading from the server.
 const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
-pub struct TestClient {
-    reader: BufReader<OwnedReadHalf>,
-    writer: OwnedWriteHalf,
+pub struct TestClient<S> {
+    reader: BufReader<ReadHalf<S>>,
+    writer: WriteHalf<S>,
 }
 
-impl TestClient {
+impl TestClient<TlsStream<TcpStream>> {
     /// Connects to the server without completing username selection.
     pub async fn connect(addr: &str) -> Result<Self> {
-        let socket = TcpStream::connect(addr).await?;
-        let (reader, writer) = socket.into_split();
+        // Create a TLS client that accepts any certificate (for testing)
+        let connector = TlsConnector::from(Arc::new(
+            ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(InsecureTestVerification))
+                .with_no_client_auth(),
+        ));
+
+        // Connect to the server with a timeout
+        let socket = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(addr))
+            .await
+            .context("Timeout connecting to server")??;
+
+        // Perform TLS handshake with a timeout
+        let tls_stream = tokio::time::timeout(
+            CONNECT_TIMEOUT,
+            connector.connect(
+                ServerName::try_from("localhost").map_err(|_| anyhow!("Invalid DNS name"))?,
+                socket,
+            ),
+        )
+        .await
+        .context("Timeout during TLS handshake")??;
+
+        let (reader, writer) = tokio::io::split(tls_stream);
+
         Ok(Self { reader: BufReader::new(reader), writer })
     }
 
@@ -51,7 +81,11 @@ impl TestClient {
 
         Ok(client)
     }
+}
 
+impl<S> TestClient<S>
+where S: AsyncRead + AsyncWrite + Unpin
+{
     /// Sends a line to the server.
     pub async fn send_line(&mut self, msg: &str) -> Result<()> {
         self.writer.write_all(msg.as_bytes()).await?;

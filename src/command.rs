@@ -1,3 +1,4 @@
+#[derive(PartialEq, Eq)]
 pub enum Command<'a> {
     Empty,
     Quit,
