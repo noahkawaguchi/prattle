@@ -96,7 +96,7 @@ pub async fn run(
                         info!("Broadcast shutdown to {receivers} client(s)");
                         true
                     }
-                    Err(e) if users.lock().await.is_empty() => {
+                    Err(e) if users.lock().await.is_empty() && active_clients.load(SeqCst) == 0 => {
                         warn!("No users online to broadcast shutdown to: {e}");
                         false
                     }
