@@ -212,3 +212,50 @@ fn server_stops_accepting_new_connections_during_graceful_shutdown() -> Result<(
         Ok(())
     })
 }
+
+#[test]
+fn shutdown_during_username_selection_disconnects_gracefully() -> Result<()> {
+    tokio_test(async {
+        let (addr, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
+
+        // Connect but don't provide a username yet
+        let mut client = TestClient::connect(&addr).await?;
+
+        // Read the username prompt
+        let prompt = client.read_prompt().await?;
+        assert!(
+            prompt.contains("Choose a username:"),
+            "Expected username prompt, got: {prompt}"
+        );
+
+        // Trigger shutdown while still in username selection
+        shutdown_tx
+            .send(())
+            .map_err(|()| anyhow!("Failed to send shutdown signal"))?;
+
+        // Client should receive shutdown message even during username selection
+        client
+            .read_until_line_contains("Server is shutting down")
+            .await?;
+
+        // Client stays connected but doesn't close the connection
+        tokio::time::sleep(Duration::from_secs(2)).await;
+
+        // Verify server is still waiting before the 4s per-client timeout
+        assert!(
+            !server_handle.is_finished(),
+            "Server should still be waiting for client (before client timeout)"
+        );
+
+        // Keep the client connected (don't drop it) and wait for the 4s per-client timeout
+        tokio::time::sleep(Duration::from_secs(3)).await;
+
+        // Server should have shut down after the timeout despite the client still being connected
+        assert!(
+            server_handle.is_finished(),
+            "Server should have shut down after 4s timeout despite client still being connected"
+        );
+
+        Ok(())
+    })
+}
