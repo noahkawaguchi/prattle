@@ -2,7 +2,10 @@ use crate::client;
 use anyhow::Result;
 use std::{
     collections::HashSet,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering::SeqCst},
+    },
     time::{Duration, Instant},
 };
 use tokio::{
@@ -43,6 +46,9 @@ pub async fn run(
 
     let (sender, _) = broadcast::channel(CHANNEL_CAP);
     let (shutdown_tx, _) = broadcast::channel(1);
+    // All client connections, regardless of whether they have provided a username
+    let active_clients = Arc::new(AtomicUsize::new(0));
+    // The set of usernames provided by active clients
     let users = Arc::new(Mutex::new(HashSet::new()));
 
     tokio::pin!(shutdown_signal);
@@ -57,6 +63,7 @@ pub async fn run(
                 let tx = sender.clone();
                 let rx = tx.subscribe();
                 let users_clone = Arc::clone(&users);
+                let active_clients_clone = Arc::clone(&active_clients);
                 let shutdown_rx = shutdown_tx.subscribe();
 
                 tokio::spawn(async move {
@@ -66,6 +73,8 @@ pub async fn run(
                         Ok(tls_stream) => {
                             info!("TLS handshake completed for {client_addr}");
 
+                            active_clients_clone.fetch_add(1, SeqCst);
+
                             if let Err(e) =
                                 client::handle_client(tls_stream, tx, rx, shutdown_rx, users_clone)
                                     .await
@@ -74,6 +83,8 @@ pub async fn run(
                             } else {
                                 info!("Client {client_addr} disconnected");
                             }
+
+                            active_clients_clone.fetch_sub(1, SeqCst);
                         }
                     }
                 });
@@ -101,10 +112,15 @@ pub async fn run(
 
         let start = Instant::now();
 
-        while !users.lock().await.is_empty() {
+        while !users.lock().await.is_empty() || active_clients.load(SeqCst) > 0 {
             if start.elapsed() >= GLOBAL_SHUTDOWN_TIMEOUT {
-                let remaining = users.lock().await.len();
-                warn!("Global shutdown timeout reached with {remaining} client(s) still connected");
+                warn!(
+                    "Global shutdown timeout reached with {} user(s) and \
+                    {} active client(s) still connected",
+                    users.lock().await.len(),
+                    active_clients.load(SeqCst)
+                );
+
                 break;
             }
 
