@@ -1,3 +1,4 @@
+/// Sets up the async runtime and logging, then runs the server.
 fn main() -> anyhow::Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()

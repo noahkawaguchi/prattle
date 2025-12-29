@@ -1,13 +1,4 @@
-#[derive(PartialEq, Eq)]
-pub enum Command<'a> {
-    Empty,
-    Quit,
-    Help,
-    Who,
-    Action(&'a str),
-    Msg(&'a str),
-}
-
+/// The help message explaining available commands.
 pub const COMMAND_HELP: &[u8] = b"
 /quit             Leave the server
 /help             Show this message
@@ -18,7 +9,32 @@ pub const COMMAND_HELP: &[u8] = b"
 
 ";
 
+/// The set of valid commands, including arbitrary messages and the empty (no-op) command.
+#[derive(PartialEq, Eq)]
+pub enum Command<'a> {
+    /// The no-op command.
+    Empty,
+
+    /// Disconnects from the server.
+    Quit,
+
+    /// Retrieves the help message.
+    Help,
+
+    /// Lists online users.
+    Who,
+
+    /// Broadcasts an action.
+    Action(&'a str),
+
+    /// Broadcasts a message.
+    Msg(&'a str),
+}
+
 impl<'a> Command<'a> {
+    /// Parses a `Command` from a string. There are no error conditions because empty/whitespace
+    /// strings are considered to be `Command::Empty` and unknown values are considered to be
+    /// messages.
     pub fn parse(input: &'a str) -> Self {
         let trimmed = input.trim();
 
