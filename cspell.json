@@ -1,4 +1,13 @@
 {
   "useGitignore": true,
-  "words": ["clippy", "dotenv", "oneshot", "rcgen", "rustls", "PKCS", "NISTP"]
+  "words": [
+    "clippy",
+    "dotenv",
+    "oneshot",
+    "rcgen",
+    "rustls",
+    "PKCS",
+    "NISTP",
+    "backpressure"
+  ]
 }
