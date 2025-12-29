@@ -22,6 +22,13 @@ const UNKNOWN_USERNAME: &str = "[unknown]";
 
 type Users = Arc<Mutex<HashSet<String>>>;
 
+/// Handles an individual client, prompting them for a username and then entering the main
+/// read/write command loop. Gracefully disconnects when the client quits or the server shuts down.
+///
+/// # Errors
+///
+/// Returns `Err` for unexpected disconnections and technical errors. Logs expected and recoverable
+/// errors.
 pub async fn handle_client<S>(
     socket: S,
     tx: Sender<String>,
@@ -109,6 +116,7 @@ where
     }
 }
 
+/// Internal struct for organizing the management of a client connection.
 struct ClientHandler<R, W> {
     reader: BufReader<R>,
     writer: W,
@@ -124,6 +132,8 @@ where
     R: AsyncRead + Unpin,
     W: AsyncWrite + Unpin,
 {
+    /// Handles the client's entry to and exit from the server, running the main command loop in
+    /// between.
     async fn run(&mut self) -> Result<()> {
         self.writer
             .write_all(
@@ -152,6 +162,8 @@ where
         loop_res
     }
 
+    /// Runs the main command/message loop, reading and writing until the client quits, the server
+    /// shuts down, or an unexpected error occurs.
     async fn command_loop(&mut self) -> Result<()> {
         let mut line = String::new();
 

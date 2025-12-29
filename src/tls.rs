@@ -28,7 +28,7 @@ fn generate_self_signed_cert() -> Result<(CertificateDer<'static>, PrivateKeyDer
     let key_pair = KeyPair::generate()?;
 
     Ok((
-        // Generate and serialize self-signed certificate
+        // Generate and serialize self-signed cert
         params.self_signed(&key_pair)?.der().clone(),
         // Serialize private key
         PrivateKeyDer::try_from(key_pair.serialize_der())
@@ -36,7 +36,7 @@ fn generate_self_signed_cert() -> Result<(CertificateDer<'static>, PrivateKeyDer
     ))
 }
 
-/// Creates a rustls `ServerConfig` with a new self-signed certificate on each call.
+/// Creates a Tokio Rustls `ServerConfig` with a new self-signed certificate on each call.
 ///
 /// # Errors
 ///
@@ -44,7 +44,7 @@ fn generate_self_signed_cert() -> Result<(CertificateDer<'static>, PrivateKeyDer
 pub fn create_config() -> Result<Arc<ServerConfig>> {
     let (cert, key) = generate_self_signed_cert()?;
 
-    // Configure to use the self-signed cert and not to require client certificates
+    // Configure to use the self-signed certificate and not to require client certificates
     Ok(Arc::new(
         ServerConfig::builder()
             .with_no_client_auth()
