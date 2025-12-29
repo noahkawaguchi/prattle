@@ -2,13 +2,13 @@ use crate::{
     command::{COMMAND_HELP, Command},
     server::GLOBAL_SHUTDOWN_TIMEOUT,
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use std::{collections::HashSet, sync::Arc, time::Duration};
 use tokio::{
     io::{AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader},
     sync::{
         Mutex,
-        broadcast::{Receiver, Sender},
+        broadcast::{Receiver, Sender, error::RecvError},
     },
 };
 use tracing::{error, info, warn};
@@ -158,7 +158,25 @@ where
         loop {
             tokio::select! {
                 received_val_result = self.rx.recv() => {
-                    self.writer.write_all(received_val_result?.as_bytes()).await?;
+                    match received_val_result {
+                        Ok(msg) => self.writer.write_all(msg.as_bytes()).await?,
+
+                        Err(RecvError::Closed) => {
+                            break Err(anyhow!("Broadcast channel closed ({})", self.username));
+                        }
+
+                        Err(RecvError::Lagged(n)) => {
+                            warn!("{} lagged behind and missed {n} messages", self.username);
+
+                            // Warn slow readers when they lag behind the broadcast channel
+                            // capacity, allowing them to stay connected
+                            self.writer
+                                .write_all(
+                                    format!("You fell behind and missed {n} messages\n").as_bytes(),
+                                )
+                                .await?;
+                        }
+                    }
                 }
 
                 bytes_read_result = self.reader.read_line(&mut line) => {
