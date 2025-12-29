@@ -63,7 +63,7 @@ BIND_ADDR=0.0.0.0:9000 cargo run
 
 ## Connecting as a Client
 
-_Note: Prattle uses self-signed certificates for development, so you'll need to accept it when connecting._
+_Note: Prattle uses self-signed certificates for development, so you'll need to accept the certificate when connecting._
 
 Connect using any TLS-capable client like `openssl s_client`, specifying your custom `BIND_ADDR` or the default `127.0.0.1:8000`:
 
