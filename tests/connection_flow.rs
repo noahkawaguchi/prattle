@@ -37,6 +37,30 @@ fn empty_usernames_are_rejected() -> Result<()> {
 }
 
 #[test]
+fn using_the_unknown_username_is_rejected() -> Result<()> {
+    tokio_test(async {
+        let mut client = TestClient::connect(&test_server::spawn().await?).await?;
+
+        // Attempt to join with the literal string used for unknown usernames and expect an error
+        // message
+        client.read_prompt().await?;
+        client.send_line("[unknown]").await?;
+        client.read_line_assert_contains("Invalid username").await?;
+
+        // Now send a valid username and expect the welcome/join messages
+        client.send_line("alice").await?;
+        client
+            .read_line_assert_contains_all(&["alice", "welcome"])
+            .await?;
+        client
+            .read_line_assert_contains("alice joined the server")
+            .await?;
+
+        Ok(())
+    })
+}
+
+#[test]
 fn duplicate_usernames_are_rejected() -> Result<()> {
     tokio_test(async {
         let addr = test_server::spawn().await?;

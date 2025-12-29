@@ -61,6 +61,8 @@ where
 
                 if read_username.is_empty() {
                     writer.write_all(b"Username cannot be empty\n").await?;
+                } else if read_username == UNKNOWN_USERNAME {
+                    writer.write_all(b"Invalid username\n").await?;
                 } else {
                     let mut users_guard = users.lock().await;
 
