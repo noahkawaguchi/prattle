@@ -8,6 +8,8 @@
     "rustls",
     "PKCS",
     "NISTP",
-    "backpressure"
+    "backpressure",
+    "dtolnay",
+    "Swatinem"
   ]
 }
