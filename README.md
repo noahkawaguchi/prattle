@@ -51,6 +51,8 @@ Prattle uses a broadcast channel architecture where:
 
 ## Running the Server
 
+The Rust toolchain can be installed as described [here](https://rust-lang.org/tools/install/), after which the `cargo` command should be available.
+
 ```bash
 cargo run
 ```
