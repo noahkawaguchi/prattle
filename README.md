@@ -86,7 +86,7 @@ just
 cargo test
 ```
 
-The suite of unit and integration tests includes spawning a real server and simulating multiple concurrent clients to verify:
+The suite of unit and integration tests includes spawning a server and simulating multiple concurrent clients to verify:
 
 - Concurrent connection behavior
 - Username validation and collision handling
