@@ -1,3 +1,5 @@
+[English](README.md) | [日本語](README.ja.md)
+
 # Prattle
 
 A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems programming concepts such as async I/O, concurrent client handling, network protocol design, and graceful resource management.
