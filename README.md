@@ -20,7 +20,7 @@ A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems pr
 - **Command System**: Simple text-based protocol with commands for chatting, actions, and server queries
 - **Backpressure Handling**: Recognizes slow clients and warns them when they fall behind
 - **Graceful Shutdown**: Cleanly handles server shutdown with proper client notification and connection draining
-- **Strict Code Quality and Testing**: Completely forbids `unsafe`, `unwrap`, and `expect` using Clippy and includes a comprehensive test suite
+- **Strict Code Quality and Testing**: Completely forbids `unsafe`, `unwrap`, and `expect` using Clippy and includes a comprehensive test suite, with all checks enforced in CI
 
 ## Tech Stack
 
