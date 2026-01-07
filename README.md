@@ -1,3 +1,5 @@
+[English](README.md) | [日本語](README.ja.md)
+
 # Prattle
 
 A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems programming concepts such as async I/O, concurrent client handling, network protocol design, and graceful resource management.
@@ -20,7 +22,7 @@ A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems pr
 - **Command System**: Simple text-based protocol with commands for chatting, actions, and server queries
 - **Backpressure Handling**: Recognizes slow clients and warns them when they fall behind
 - **Graceful Shutdown**: Cleanly handles server shutdown with proper client notification and connection draining
-- **Strict Code Quality and Testing**: Completely forbids `unsafe`, `unwrap`, and `expect` using Clippy and includes a comprehensive test suite
+- **Strict Code Quality and Testing**: Completely forbids `unsafe`, `unwrap`, and `expect` using Clippy and includes a comprehensive test suite, with all checks enforced in CI
 
 ## Tech Stack
 
@@ -65,7 +67,8 @@ BIND_ADDR=0.0.0.0:9000 cargo run
 
 ## Connecting as a Client
 
-_Note: Prattle uses self-signed certificates for development, so you'll need to accept the certificate when connecting._
+> [!NOTE]
+> Prattle uses self-signed certificates for development, so you'll need to accept the certificate when connecting.
 
 Connect using any TLS-capable client like `openssl s_client`, specifying your custom `BIND_ADDR` or the default `127.0.0.1:8000`:
 
@@ -85,7 +88,7 @@ just
 cargo test
 ```
 
-The suite of unit and integration tests includes spawning a real server and simulating multiple concurrent clients to verify:
+The suite of unit and integration tests includes spawning a server and simulating multiple concurrent clients to verify:
 
 - Concurrent connection behavior
 - Username validation and collision handling
