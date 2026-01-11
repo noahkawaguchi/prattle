@@ -42,7 +42,7 @@ pub async fn run(
 ) -> Result<()> {
     let listener = TcpListener::bind(bind_addr).await?;
     let tls_acceptor = TlsAcceptor::from(tls_config);
-    info!("Listening on {bind_addr} with TLS");
+    info!("Listening on {bind_addr}");
 
     let (sender, _) = broadcast::channel(CHANNEL_CAP);
     let (shutdown_tx, _) = broadcast::channel(1);
