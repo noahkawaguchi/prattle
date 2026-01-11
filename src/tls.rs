@@ -7,7 +7,7 @@ use std::{
     net::{IpAddr, Ipv4Addr},
     path::Path,
     str::FromStr,
-    sync::Arc,
+    sync::{Arc, Mutex, OnceLock},
 };
 use tokio_rustls::rustls::ServerConfig;
 use tracing::info;
@@ -18,26 +18,45 @@ pub const CERT_PATH: &str = "server.crt";
 /// The file path for the server's private key for TLS.
 const KEY_PATH: &str = "server.key";
 
+/// Global lock to ensure certificate generation happens only once across concurrent threads.
+static CERT_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+
 /// Creates a Tokio Rustls `ServerConfig` using a persistent self-signed certificate.
 ///
 /// If certificate files (`CERT_PATH` and `KEY_PATH`) exist, they are loaded. Otherwise, a new
 /// self-signed certificate is generated and saved to file.
 ///
+/// This function uses a lock to ensure that certificate generation is atomic across threads,
+/// preventing race conditions when multiple servers/tests start simultaneously.
+///
 /// # Errors
 ///
 /// Returns `Err` if certificate generation, file I/O, or config creation fails.
 pub fn create_config() -> Result<Arc<ServerConfig>> {
-    // Check if certificate files exist and load or regenerate them accordingly
-    let (cert, key) = if Path::new(CERT_PATH).exists() && Path::new(KEY_PATH).exists() {
-        info!("Loading existing TLS certificate from file");
+    // Get/initialize and acquire the lock to ensure atomic check/generate
+    let guard = CERT_FILE_LOCK
+        .get_or_init(|| Mutex::new(()))
+        .lock()
+        .map_err(|e| anyhow!("Lock poisoned: {e}"))?;
+
+    // Check if certificate files exist and load/regenerate them accordingly while holding the lock
+    let files_found = Path::new(CERT_PATH).exists() && Path::new(KEY_PATH).exists();
+
+    let (cert, key) = if files_found {
         load_cert_and_key()?
     } else {
-        info!("Generating new self-signed TLS certificate");
         let (cert, key) = generate_self_signed_cert_and_key()?;
         save_cert_and_key(&cert, &key)?;
-        info!("Saved files {CERT_PATH} and {KEY_PATH}");
         (cert, key)
     };
+
+    drop(guard);
+
+    if files_found {
+        info!("Loaded existing TLS certificate from file");
+    } else {
+        info!("Generated and saved new self-signed TLS certificate");
+    }
 
     // Configure to use the self-signed certificate and not to require client certificates
     Ok(Arc::new(
