@@ -12,12 +12,15 @@ use std::{
 use tokio_rustls::rustls::ServerConfig;
 use tracing::info;
 
-const CERT_PATH: &str = "server.crt";
+/// The file path for the server's certificate (public key and metadata) for TLS.
+pub const CERT_PATH: &str = "server.crt";
+
+/// The file path for the server's private key for TLS.
 const KEY_PATH: &str = "server.key";
 
 /// Creates a Tokio Rustls `ServerConfig` using a persistent self-signed certificate.
 ///
-/// If certificate files (`server.crt` and `server.key`) exist, they are loaded. Otherwise, a new
+/// If certificate files (`CERT_PATH` and `KEY_PATH`) exist, they are loaded. Otherwise, a new
 /// self-signed certificate is generated and saved to file.
 ///
 /// # Errors
