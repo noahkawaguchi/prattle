@@ -1,4 +1,4 @@
-use crate::common::insecure_test_tls::InsecureTestVerification;
+use crate::common::test_tls::PinnedCertVerifier;
 use anyhow::{Context, Result, anyhow};
 use rustls::pki_types::ServerName;
 use std::{sync::Arc, time::Duration};
@@ -27,11 +27,11 @@ pub struct TestClient<S> {
 impl TestClient<TlsStream<TcpStream>> {
     /// Connects to the server without completing username selection.
     pub async fn connect(addr: &str) -> Result<Self> {
-        // Create a TLS client that accepts any certificate (for testing)
+        // Create a TLS client that validates against the pinned certificate
         let connector = TlsConnector::from(Arc::new(
             ClientConfig::builder()
                 .dangerous()
-                .with_custom_certificate_verifier(Arc::new(InsecureTestVerification))
+                .with_custom_certificate_verifier(Arc::new(PinnedCertVerifier::from_file()?))
                 .with_no_client_auth(),
         ));
 

@@ -2,3 +2,9 @@
 !.env.example
 
 target/
+
+# Note: For production, the .crt would be public and the .key would be managed
+# as a secret, but for demonstration purposes, they can be regenerated in every
+# environment.
+server.key
+server.crt

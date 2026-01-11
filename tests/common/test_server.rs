@@ -25,9 +25,11 @@ pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>
 /// address.
 #[allow(dead_code)] // Not actually dead code
 pub async fn spawn() -> Result<String> {
-    let (addr, _) = inner_spawn_with_shutdown(prattle::shutdown_signal::listen()?).await?;
-
-    Ok(addr)
+    Ok(
+        inner_spawn_with_shutdown(prattle::shutdown_signal::listen()?)
+            .await?
+            .0,
+    )
 }
 
 /// Spawns the server with `shutdown_signal` as the shutdown signal on a random available port and
