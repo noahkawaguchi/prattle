@@ -20,7 +20,7 @@ impl PinnedCertVerifier {
     pub fn from_file() -> Result<Self> {
         Ok(Self {
             expected_cert: CertificateDer::from(
-                pem::parse(&fs::read_to_string(prattle::tls::CERT_PATH)?)?
+                pem::parse(&fs::read_to_string(prattle_server::tls::CERT_PATH)?)?
                     .contents()
                     .to_vec(),
             ),
