@@ -1,5 +1,5 @@
 [package]
-name = "prattle-server"
+name = "prattle-client"
 version = "0.1.0"
 edition = "2024"
 
@@ -9,12 +9,6 @@ workspace = true
 [dependencies]
 anyhow.workspace = true
 pem.workspace = true
-rcgen = "0.14.6"
 rustls.workspace = true
 tokio.workspace = true
 tokio-rustls.workspace = true
-tracing = "0.1.44"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
-
-[dev-dependencies]
-prattle-client.path = "../client"

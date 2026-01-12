@@ -413,11 +413,23 @@ name = "prattle-cli"
 version = "0.1.0"
 
 [[package]]
+name = "prattle-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "pem",
+ "rustls",
+ "tokio",
+ "tokio-rustls",
+]
+
+[[package]]
 name = "prattle-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "pem",
+ "prattle-client",
  "rcgen",
  "rustls",
  "tokio",

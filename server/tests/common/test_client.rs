@@ -1,5 +1,5 @@
-use crate::common::test_tls::PinnedCertVerifier;
 use anyhow::{Context, Result, anyhow};
+use prattle_client::pinned_cert_verifier::PinnedCertVerifier;
 use rustls::pki_types::ServerName;
 use std::{sync::Arc, time::Duration};
 use tokio::{

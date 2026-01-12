@@ -1,8 +1,6 @@
 pub mod test_client;
 pub mod test_server;
 
-mod test_tls;
-
 use anyhow::{Context, Result};
 use tracing::level_filters::LevelFilter;
 

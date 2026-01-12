@@ -13,7 +13,7 @@ use tokio_rustls::rustls::ServerConfig;
 use tracing::info;
 
 /// The file path for the server's certificate (public key and metadata) for TLS.
-pub const CERT_PATH: &str = "server.crt";
+const CERT_PATH: &str = "server.crt";
 
 /// The file path for the server's private key for TLS.
 const KEY_PATH: &str = "server.key";
