@@ -10,10 +10,11 @@ A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems pr
 2. [Tech Stack](#tech-stack)
 3. [Architecture](#architecture)
 4. [Commands](#commands)
-5. [Running the Server](#running-the-server)
-6. [Connecting as a Client](#connecting-as-a-client)
-7. [Running Tests](#running-tests)
-8. [Project Goals](#project-goals)
+5. [Prerequisites](#prerequisites)
+6. [Running the Server](#running-the-server)
+7. [Connecting as a Client](#connecting-as-a-client)
+8. [Running Tests](#running-tests)
+9. [Project Goals](#project-goals)
 
 ## Features
 
@@ -51,18 +52,18 @@ Prattle uses a broadcast channel architecture where:
 [anything else]   Send a regular message
 ```
 
+## Prerequisites
+
+- The [Rust toolchain](https://rust-lang.org/tools/install/)
+- The command runner [just](https://github.com/casey/just#installation) (or manually run the commands in the [`justfile`](justfile))
+- A TLS-capable client such as `openssl s_client`
+
 ## Running the Server
 
-The Rust toolchain can be installed as described [here](https://rust-lang.org/tools/install/), after which the `cargo` command should be available.
+The server binds to `127.0.0.1:8000` by default, which can be overridden with the `BIND_ADDR` environment variable. `BIND_ADDR` will automatically be read in from a `.env` file if present.
 
 ```bash
-cargo run
-```
-
-The server binds to `127.0.0.1:8000` by default. Override with the `BIND_ADDR` environment variable:
-
-```bash
-BIND_ADDR=0.0.0.0:9000 cargo run
+just serve
 ```
 
 ## Connecting as a Client
@@ -70,13 +71,7 @@ BIND_ADDR=0.0.0.0:9000 cargo run
 > [!NOTE]
 > Prattle uses self-signed certificates for development, so you'll need to accept the certificate when connecting.
 
-Connect using any TLS-capable client like `openssl s_client`, specifying your custom `BIND_ADDR` or the default `127.0.0.1:8000`:
-
-```bash
-openssl s_client -connect 127.0.0.1:8000 -quiet
-```
-
-Or, using the command runner [just](https://github.com/casey/just), simply use the command `just`. The `BIND_ADDR` environment variable will be automatically read from a `.env` file if present, falling back to the same default as the server:
+Simply execute the command `just`. As with the server, the `BIND_ADDR` environment variable will be read from `.env` if present, falling back to the same default:
 
 ```bash
 just
@@ -85,7 +80,7 @@ just
 ## Running Tests
 
 ```bash
-cargo test
+just test
 ```
 
 The suite of unit and integration tests includes spawning a server and simulating multiple concurrent clients to verify:
