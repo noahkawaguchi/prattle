@@ -8,6 +8,7 @@ use tokio::{
 };
 use tokio_rustls::{TlsConnector, client::TlsStream};
 
+/// Manages a client's TLS connection to the server.
 pub struct ClientConnection {
     reader: BufReader<ReadHalf<TlsStream<TcpStream>>>,
     writer: WriteHalf<TlsStream<TcpStream>>,
