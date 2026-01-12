@@ -16,6 +16,10 @@ pub struct ClientConnection {
 impl ClientConnection {
     /// Connects to the server at `addr` with TLS using the pinned cert verifier, timing out after
     /// `timeout`.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the connection process fails or times out.
     pub async fn connect(addr: &str, timeout: Duration) -> Result<Self> {
         // Create a TLS client that validates against the pinned certificate
         let connector = TlsConnector::from(Arc::new(
@@ -32,7 +36,7 @@ impl ClientConnection {
 
         let host = addr
             .split_once(':')
-            .with_context(|| format!("failed to split addr {addr} on ':'"))?
+            .with_context(|| format!("Failed to split addr {addr} on ':'"))?
             .0
             .to_string();
 
@@ -50,6 +54,10 @@ impl ClientConnection {
     }
 
     /// Sends a line to the server.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the write fails.
     pub async fn send_line(&mut self, msg: &str) -> Result<()> {
         self.writer.write_all(msg.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
@@ -57,6 +65,10 @@ impl ClientConnection {
     }
 
     /// Reads a line from the server.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the read fails.
     pub async fn read_line(&mut self) -> Result<String> {
         let mut line = String::new();
         self.reader.read_line(&mut line).await?;
