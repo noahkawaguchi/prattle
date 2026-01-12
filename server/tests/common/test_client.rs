@@ -24,13 +24,10 @@ impl TestClient {
     pub async fn connect_with_username(username: &str, addr: &str) -> Result<Self> {
         let mut client = Self::connect(addr).await?;
 
-        // Read the "Choose a username: " prompt (doesn't end with newline)
-        let prompt = client.read_prompt().await?;
-
-        assert!(
-            prompt.contains("Choose a username:"),
-            "Expected username prompt, got: {prompt}"
-        );
+        // Read the "Choose a username:" prompt
+        client
+            .read_line_assert_contains_all(&["Choose", "username"])
+            .await?;
 
         // Send username
         client.send_line(username).await?;
@@ -48,14 +45,6 @@ impl TestClient {
 
     /// Sends a line to the server.
     pub async fn send_line(&mut self, msg: &str) -> Result<()> { self.conn.send_line(msg).await }
-
-    /// Reads a prompt from the server using custom termination logic.
-    ///
-    /// Specifically, reads until the first ':', then also reads the following byte (assumed to be a
-    /// trailing space).
-    pub async fn read_prompt(&mut self) -> Result<String> {
-        self.conn.read_prompt(READ_TIMEOUT).await
-    }
 
     /// Reads a line from the server with a timeout and asserts that it contains the specified
     /// substring.

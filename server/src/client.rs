@@ -59,7 +59,7 @@ where
             }
 
             read_result = async {
-                writer.write_all(b"Choose a username: ").await?;
+                writer.write_all(b"Choose a username:\n").await?;
                 reader.read_line(&mut line).await
             } => {
                 read_result?;

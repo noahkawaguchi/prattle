@@ -222,11 +222,9 @@ fn shutdown_during_username_selection_disconnects_gracefully() -> Result<()> {
         let mut client = TestClient::connect(&addr).await?;
 
         // Read the username prompt
-        let prompt = client.read_prompt().await?;
-        assert!(
-            prompt.contains("Choose a username:"),
-            "Expected username prompt, got: {prompt}"
-        );
+        client
+            .read_line_assert_contains_all(&["Choose", "username"])
+            .await?;
 
         // Trigger shutdown while still in username selection
         shutdown_tx
