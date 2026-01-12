@@ -26,7 +26,7 @@ pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>
 #[allow(dead_code)] // Not actually dead code
 pub async fn spawn() -> Result<String> {
     Ok(
-        inner_spawn_with_shutdown(prattle::shutdown_signal::listen()?)
+        inner_spawn_with_shutdown(prattle_server::shutdown_signal::listen()?)
             .await?
             .0,
     )
@@ -38,7 +38,7 @@ async fn inner_spawn_with_shutdown(
     shutdown_signal: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(String, JoinHandle<()>)> {
     // Ignore the error if the tracing subscriber was already initialized in another test
-    let _ = prattle::logger::init_with_default(TEST_LOG_LEVEL);
+    let _ = prattle_server::logger::init_with_default(TEST_LOG_LEVEL);
 
     // Bind to port 0 to get a random available port and immediately drop the listener so the port
     // is available for the server to bind
@@ -51,11 +51,12 @@ async fn inner_spawn_with_shutdown(
     let server_addr = addr.clone();
 
     // Create TLS configuration for the test server
-    let tls_config = prattle::tls::create_config()?;
+    let tls_config = prattle_server::tls::create_config()?;
 
     // Spawn the server in a background task
     let handle = tokio::spawn(async move {
-        if let Err(e) = prattle::server::run(&server_addr, tls_config, shutdown_signal).await {
+        if let Err(e) = prattle_server::server::run(&server_addr, tls_config, shutdown_signal).await
+        {
             // `eprintln!` instead of `error!` because logging may be off in tests
             eprintln!("Error running test server: {e}");
         }

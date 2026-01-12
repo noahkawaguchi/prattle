@@ -11,6 +11,7 @@
     "backpressure",
     "dtolnay",
     "Swatinem",
-    "ocsp"
+    "ocsp",
+    "justfile"
   ]
 }
