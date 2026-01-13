@@ -14,6 +14,16 @@ pub struct ClientConnection {
     writer: WriteHalf<TlsStream<TcpStream>>,
 }
 
+/// The reader half of a client connection.
+pub struct ClientReader {
+    reader: BufReader<ReadHalf<TlsStream<TcpStream>>>,
+}
+
+/// The writer half of a client connection.
+pub struct ClientWriter {
+    writer: WriteHalf<TlsStream<TcpStream>>,
+}
+
 impl ClientConnection {
     /// Connects to the server at `addr` with TLS using the pinned cert verifier, timing out after
     /// `timeout`.
@@ -74,5 +84,50 @@ impl ClientConnection {
         let mut line = String::new();
         self.reader.read_line(&mut line).await?;
         Ok(line)
+    }
+
+    /// Splits the connection into separate reader and writer halves for concurrent use.
+    #[must_use]
+    pub fn split(self) -> (ClientReader, ClientWriter) {
+        (
+            ClientReader { reader: self.reader },
+            ClientWriter { writer: self.writer },
+        )
+    }
+}
+
+impl ClientReader {
+    /// Reads a line from the server.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the read fails.
+    pub async fn read_line(&mut self) -> Result<String> {
+        let mut line = String::new();
+        self.reader.read_line(&mut line).await?;
+        Ok(line)
+    }
+}
+
+impl ClientWriter {
+    /// Sends a line to the server.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the write fails.
+    pub async fn send_line(&mut self, msg: &str) -> Result<()> {
+        self.writer.write_all(msg.as_bytes()).await?;
+        self.writer.write_all(b"\n").await?;
+        Ok(())
+    }
+
+    /// Gracefully shuts down the write half of the connection (TLS `close_notify`).
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the shutdown fails.
+    pub async fn shutdown(&mut self) -> Result<()> {
+        self.writer.shutdown().await?;
+        Ok(())
     }
 }
