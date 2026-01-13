@@ -15,12 +15,18 @@ fn main() -> Result<()> {
 
 /// Connects to the server and writes to/reads from it using stdin/stdout until mutual
 /// `close_notify` (initiated by a "/quit" command).
+///
+/// # Optional Environment Variable Configuration
+///
+/// - `CERT_PATH` - Specify a file path other than `server.crt` for reading the server's
+///   certificate.
+/// - `BIND_ADDR` - Specify an address other than `127.0.0.1:8000` for connecting to the server.
 async fn async_main() -> Result<()> {
-    let (mut reader, mut writer) = prattle_client::connect(
-        &env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000")),
-        CONNECTION_TIMEOUT,
-    )
-    .await?;
+    let cert_path = env::var("CERT_PATH").unwrap_or_else(|_| String::from("server.crt"));
+    let addr = env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000"));
+
+    let (mut reader, mut writer) =
+        prattle_client::connect(&cert_path, &addr, CONNECTION_TIMEOUT).await?;
 
     // Channel to send stdin lines from OS thread (unbounded because human input is small and much
     // slower than network writes, MPSC for simplicity given Tokio's API even though it's SPSC)

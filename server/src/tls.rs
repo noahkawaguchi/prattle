@@ -15,7 +15,7 @@ use std::{
 use tracing::info;
 
 /// The file path for the server's certificate (public key and metadata) for TLS.
-const CERT_PATH: &str = "server.crt";
+pub const CERT_PATH: &str = "server.crt";
 
 /// The file path for the server's private key for TLS.
 const KEY_PATH: &str = "server.key";

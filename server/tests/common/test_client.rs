@@ -20,7 +20,9 @@ pub struct TestClient {
 impl TestClient {
     /// Connects to the server without completing username selection.
     pub async fn connect(addr: &str) -> Result<Self> {
-        let (reader, writer) = prattle_client::connect(addr, CONNECT_TIMEOUT).await?;
+        let (reader, writer) =
+            prattle_client::connect(prattle_server::tls::CERT_PATH, addr, CONNECT_TIMEOUT).await?;
+
         Ok(Self { reader, writer })
     }
 
