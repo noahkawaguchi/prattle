@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
 use std::time::Duration;
-use tokio::time::Instant;
+use tokio::{
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt},
+    time::Instant,
+};
 
 /// The amount of time to wait when connecting to the server.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -45,7 +48,11 @@ impl TestClient {
     }
 
     /// Sends a line to the server.
-    pub async fn send_line(&mut self, msg: &str) -> Result<()> { self.writer.send_line(msg).await }
+    pub async fn send_line(&mut self, msg: &str) -> Result<()> {
+        self.writer.write_all(msg.as_bytes()).await?;
+        self.writer.write_all(b"\n").await?;
+        Ok(())
+    }
 
     /// Reads a line from the server with a timeout and asserts that it contains the specified
     /// substring.
@@ -56,7 +63,9 @@ impl TestClient {
     /// Reads a line from the server with a timeout and asserts that it contains all the specified
     /// substrings.
     pub async fn read_line_assert_contains_all(&mut self, expected: &[&str]) -> Result<String> {
-        let line = tokio::time::timeout(READ_TIMEOUT, self.reader.read_line())
+        let mut line = String::new();
+
+        tokio::time::timeout(READ_TIMEOUT, self.reader.read_line(&mut line))
             .await
             .context("Timeout reading line")??;
 
@@ -77,17 +86,20 @@ impl TestClient {
     #[allow(dead_code)] // Not actually dead code
     pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
         let deadline = Instant::now() + READ_TIMEOUT;
+        let mut line = String::new();
 
         loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
 
-            let line = tokio::time::timeout(remaining, self.reader.read_line())
+            tokio::time::timeout(remaining, self.reader.read_line(&mut line))
                 .await
                 .context("Timeout reading lines until match")??;
 
             if line.contains(expected) {
                 break Ok(line);
             }
+
+            line.clear();
         }
     }
 
@@ -96,10 +108,14 @@ impl TestClient {
     /// `self`.
     #[allow(dead_code)] // Not actually dead code
     pub async fn graceful_disconnect(mut self) -> Result<()> {
-        tokio::time::timeout(READ_TIMEOUT, self.reader.read_to_end())
+        let mut discard = Vec::new();
+
+        tokio::time::timeout(READ_TIMEOUT, self.reader.read_to_end(&mut discard))
             .await
             .context("Timeout reading until EOF")??;
 
-        self.writer.shutdown().await
+        self.writer.shutdown().await?;
+
+        Ok(())
     }
 }

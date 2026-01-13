@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::{env, io::BufRead, time::Duration};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -13,8 +14,11 @@ fn main() -> Result<()> {
 /// Connects to the server and writes to/reads from it using stdin/stdout until mutual
 /// `close_notify` (initiated by a "/quit" command).
 async fn async_main() -> Result<()> {
-    let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000"));
-    let (mut reader, mut writer) = prattle_client::connect(&bind_addr, CONNECTION_TIMEOUT).await?;
+    let (mut reader, mut writer) = prattle_client::connect(
+        &env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000")),
+        CONNECTION_TIMEOUT,
+    )
+    .await?;
 
     // Channel to send stdin lines from OS thread
     let (stdin_tx, mut stdin_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -43,16 +47,18 @@ async fn async_main() -> Result<()> {
 
     // Future that reads from the server and prints to stdout
     let server_to_stdout = async {
+        let mut line = String::new();
+
         loop {
-            match reader.read_line().await {
+            match reader.read_line(&mut line).await {
                 Err(e) => {
                     eprintln!("Error reading line from server: {e}");
                     break;
                 }
 
-                Ok(line) => {
-                    // Empty line means EOF (server closed connection after client sent "/quit")
-                    if line.is_empty() {
+                Ok(bytes_read) => {
+                    // `Ok(0)` means EOF (server closed connection after client sent "/quit")
+                    if bytes_read == 0 {
                         break;
                     }
 
@@ -60,6 +66,8 @@ async fn async_main() -> Result<()> {
                     print!("{line}");
                 }
             }
+
+            line.clear();
         }
     };
 
@@ -70,7 +78,8 @@ async fn async_main() -> Result<()> {
         // the CLI for reading from stdin (this future) to finish first.
         loop {
             let line = stdin_rx.recv().await.context("stdin channel closed")?;
-            writer.send_line(&line).await?;
+            writer.write_all(line.as_bytes()).await?;
+            writer.write_all(b"\n").await?;
         }
     };
 
@@ -80,6 +89,6 @@ async fn async_main() -> Result<()> {
 
         // Normal path: client sent "/quit" -> server sent `close_notify` -> now client sends
         // `close_notify` and exits
-        () = server_to_stdout => writer.shutdown().await,
+        () = server_to_stdout => writer.shutdown().await.map_err(Into::into),
     }
 }

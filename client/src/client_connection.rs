@@ -2,11 +2,17 @@ use crate::pinned_cert_verifier::PinnedCertVerifier;
 use anyhow::{Context, Result, anyhow};
 use rustls::{ClientConfig, pki_types::ServerName};
 use std::{sync::Arc, time::Duration};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf},
-    net::TcpStream,
-};
-use tokio_rustls::{TlsConnector, client::TlsStream};
+use tokio::{io::BufReader, net::TcpStream};
+use tokio_rustls::TlsConnector;
+
+/// The reader half of a client connection.
+pub type ClientReader = tokio::io::BufReader<
+    tokio::io::ReadHalf<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>,
+>;
+
+/// The writer half of a client connection.
+pub type ClientWriter =
+    tokio::io::WriteHalf<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>;
 
 /// Connects to the server at `addr` with TLS using the pinned cert verifier, timing out after
 /// `timeout`. Immediately splits into reader and writer halves.
@@ -43,65 +49,5 @@ pub async fn connect(addr: &str, timeout: Duration) -> Result<(ClientReader, Cli
 
     let (reader, writer) = tokio::io::split(tls_stream);
 
-    Ok((
-        ClientReader { reader: BufReader::new(reader) },
-        ClientWriter { writer },
-    ))
-}
-
-/// The reader half of a client connection.
-pub struct ClientReader {
-    reader: BufReader<ReadHalf<TlsStream<TcpStream>>>,
-}
-
-/// The writer half of a client connection.
-pub struct ClientWriter {
-    writer: WriteHalf<TlsStream<TcpStream>>,
-}
-
-impl ClientReader {
-    /// Reads a line from the server.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` if the read fails.
-    pub async fn read_line(&mut self) -> Result<String> {
-        let mut line = String::new();
-        self.reader.read_line(&mut line).await?;
-        Ok(line)
-    }
-
-    /// Reads from the server until EOF.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` if the read fails.
-    pub async fn read_to_end(&mut self) -> Result<()> {
-        let mut discard = Vec::new();
-        self.reader.read_to_end(&mut discard).await?;
-        Ok(())
-    }
-}
-
-impl ClientWriter {
-    /// Sends a line to the server.
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` if the write fails.
-    pub async fn send_line(&mut self, msg: &str) -> Result<()> {
-        self.writer.write_all(msg.as_bytes()).await?;
-        self.writer.write_all(b"\n").await?;
-        Ok(())
-    }
-
-    /// Gracefully shuts down the write half of the connection (TLS `close_notify`).
-    ///
-    /// # Errors
-    ///
-    /// Returns `Err` if the shutdown fails.
-    pub async fn shutdown(&mut self) -> Result<()> {
-        self.writer.shutdown().await?;
-        Ok(())
-    }
+    Ok((BufReader::new(reader), writer))
 }
