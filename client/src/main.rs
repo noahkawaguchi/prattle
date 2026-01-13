@@ -2,8 +2,10 @@ use anyhow::{Context, Result};
 use std::{env, io::BufRead, time::Duration};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
 
-const CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
+/// The amount of time to wait when connecting to the server.
+const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Sets up the async runtime and calls `async_main`.
 fn main() -> Result<()> {
     tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -20,7 +22,8 @@ async fn async_main() -> Result<()> {
     )
     .await?;
 
-    // Channel to send stdin lines from OS thread
+    // Channel to send stdin lines from OS thread (unbounded because human input is small and much
+    // slower than network writes, MPSC for simplicity given Tokio's API even though it's SPSC)
     let (stdin_tx, mut stdin_rx) = tokio::sync::mpsc::unbounded_channel();
 
     // Spawn a native OS thread that blocks reading from stdin. This thread is intentionally not
