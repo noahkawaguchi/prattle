@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use prattle_client::client_connection::ClientConnection;
 use std::time::Duration;
 use tokio::time::Instant;
 
@@ -11,13 +10,15 @@ const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
 pub struct TestClient {
-    conn: ClientConnection,
+    reader: prattle_client::ClientReader,
+    writer: prattle_client::ClientWriter,
 }
 
 impl TestClient {
     /// Connects to the server without completing username selection.
     pub async fn connect(addr: &str) -> Result<Self> {
-        Ok(Self { conn: ClientConnection::connect(addr, CONNECT_TIMEOUT).await? })
+        let (reader, writer) = prattle_client::connect(addr, CONNECT_TIMEOUT).await?;
+        Ok(Self { reader, writer })
     }
 
     /// Connects to the server and completes username selection.
@@ -44,7 +45,7 @@ impl TestClient {
     }
 
     /// Sends a line to the server.
-    pub async fn send_line(&mut self, msg: &str) -> Result<()> { self.conn.send_line(msg).await }
+    pub async fn send_line(&mut self, msg: &str) -> Result<()> { self.writer.send_line(msg).await }
 
     /// Reads a line from the server with a timeout and asserts that it contains the specified
     /// substring.
@@ -55,7 +56,7 @@ impl TestClient {
     /// Reads a line from the server with a timeout and asserts that it contains all the specified
     /// substrings.
     pub async fn read_line_assert_contains_all(&mut self, expected: &[&str]) -> Result<String> {
-        let line = tokio::time::timeout(READ_TIMEOUT, self.conn.read_line())
+        let line = tokio::time::timeout(READ_TIMEOUT, self.reader.read_line())
             .await
             .context("Timeout reading line")??;
 
@@ -80,7 +81,7 @@ impl TestClient {
         loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
 
-            let line = tokio::time::timeout(remaining, self.conn.read_line())
+            let line = tokio::time::timeout(remaining, self.reader.read_line())
                 .await
                 .context("Timeout reading lines until match")??;
 

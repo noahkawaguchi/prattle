@@ -1,5 +1,4 @@
 use anyhow::{Context, Result};
-use prattle_client::client_connection::ClientConnection;
 use std::{env, io::BufRead, time::Duration};
 
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
@@ -15,9 +14,7 @@ fn main() -> Result<()> {
 /// `close_notify` (initiated by a "/quit" command).
 async fn async_main() -> Result<()> {
     let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| String::from("127.0.0.1:8000"));
-    let (mut reader, mut writer) = ClientConnection::connect(&bind_addr, CONNECTION_TIMEOUT)
-        .await?
-        .split();
+    let (mut reader, mut writer) = prattle_client::connect(&bind_addr, CONNECTION_TIMEOUT).await?;
 
     // Channel to send stdin lines from OS thread
     let (stdin_tx, mut stdin_rx) = tokio::sync::mpsc::unbounded_channel();
