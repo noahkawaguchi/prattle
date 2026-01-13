@@ -14,8 +14,8 @@ serve:
     cargo run --package prattle-server
 
 # Run all tests in the workspace
-test:
-    cargo test --workspace --all-targets
+test *ARGS:
+    cargo test --workspace --all-targets {{ARGS}}
     rm -f server/server.crt server/server.key
 # (Certificate files are removed after each test run to avoid confusion because tests generate them
 # in the `server` subdirectory, while running the server generates them in the project root.)
