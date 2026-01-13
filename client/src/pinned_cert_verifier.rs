@@ -6,6 +6,9 @@ use rustls::{
 };
 use std::fs;
 
+/// The file path for the server's certificate (public key and metadata) for TLS.
+const CERT_PATH: &str = "server.crt";
+
 /// A certificate verifier that validates against a pinned certificate from file.
 ///
 /// This verifier loads the server certificate from `CERT_PATH` and ensures that the server presents
@@ -17,10 +20,14 @@ pub struct PinnedCertVerifier {
 
 impl PinnedCertVerifier {
     /// Creates a new pinned certificate verifier by loading the certificate from file.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the file reading or pem parsing fails.
     pub fn from_file() -> Result<Self> {
         Ok(Self {
             expected_cert: CertificateDer::from(
-                pem::parse(&fs::read_to_string(prattle_server::tls::CERT_PATH)?)?
+                pem::parse(&fs::read_to_string(CERT_PATH)?)?
                     .contents()
                     .to_vec(),
             ),

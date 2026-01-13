@@ -1,7 +1,10 @@
 use anyhow::{Result, anyhow};
 use pem::Pem;
 use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, SanType, string::Ia5String};
-use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::{
+    ServerConfig,
+    pki_types::{CertificateDer, PrivateKeyDer},
+};
 use std::{
     fs,
     net::{IpAddr, Ipv4Addr},
@@ -9,11 +12,10 @@ use std::{
     str::FromStr,
     sync::{Arc, Mutex, OnceLock},
 };
-use tokio_rustls::rustls::ServerConfig;
 use tracing::info;
 
 /// The file path for the server's certificate (public key and metadata) for TLS.
-pub const CERT_PATH: &str = "server.crt";
+const CERT_PATH: &str = "server.crt";
 
 /// The file path for the server's private key for TLS.
 const KEY_PATH: &str = "server.key";
@@ -21,7 +23,7 @@ const KEY_PATH: &str = "server.key";
 /// Global lock to ensure certificate generation happens only once across concurrent threads.
 static CERT_FILE_LOCK: OnceLock<Mutex<()>> = OnceLock::new();
 
-/// Creates a Tokio Rustls `ServerConfig` using a persistent self-signed certificate.
+/// Creates a Rustls `ServerConfig` using a persistent self-signed certificate.
 ///
 /// If certificate files (`CERT_PATH` and `KEY_PATH`) exist, they are loaded. Otherwise, a new
 /// self-signed certificate is generated and saved to file.

@@ -1,16 +1,7 @@
-use crate::common::test_tls::PinnedCertVerifier;
-use anyhow::{Context, Result, anyhow};
-use rustls::pki_types::ServerName;
-use std::{sync::Arc, time::Duration};
-use tokio::{
-    io::{
-        AsyncBufReadExt, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, BufReader, ReadHalf,
-        WriteHalf,
-    },
-    net::TcpStream,
-    time::Instant,
-};
-use tokio_rustls::{TlsConnector, client::TlsStream, rustls::ClientConfig};
+use anyhow::{Context, Result};
+use prattle_client::client_connection::ClientConnection;
+use std::time::Duration;
+use tokio::time::Instant;
 
 /// The amount of time to wait when connecting to the server.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
@@ -19,54 +10,24 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
-pub struct TestClient<S> {
-    reader: BufReader<ReadHalf<S>>,
-    writer: WriteHalf<S>,
+pub struct TestClient {
+    conn: ClientConnection,
 }
 
-impl TestClient<TlsStream<TcpStream>> {
+impl TestClient {
     /// Connects to the server without completing username selection.
     pub async fn connect(addr: &str) -> Result<Self> {
-        // Create a TLS client that validates against the pinned certificate
-        let connector = TlsConnector::from(Arc::new(
-            ClientConfig::builder()
-                .dangerous()
-                .with_custom_certificate_verifier(Arc::new(PinnedCertVerifier::from_file()?))
-                .with_no_client_auth(),
-        ));
-
-        // Connect to the server with a timeout
-        let socket = tokio::time::timeout(CONNECT_TIMEOUT, TcpStream::connect(addr))
-            .await
-            .context("Timeout connecting to server")??;
-
-        // Perform TLS handshake with a timeout
-        let tls_stream = tokio::time::timeout(
-            CONNECT_TIMEOUT,
-            connector.connect(
-                ServerName::try_from("localhost").map_err(|_| anyhow!("Invalid DNS name"))?,
-                socket,
-            ),
-        )
-        .await
-        .context("Timeout during TLS handshake")??;
-
-        let (reader, writer) = tokio::io::split(tls_stream);
-
-        Ok(Self { reader: BufReader::new(reader), writer })
+        Ok(Self { conn: ClientConnection::connect(addr, CONNECT_TIMEOUT).await? })
     }
 
     /// Connects to the server and completes username selection.
     pub async fn connect_with_username(username: &str, addr: &str) -> Result<Self> {
         let mut client = Self::connect(addr).await?;
 
-        // Read the "Choose a username: " prompt (doesn't end with newline)
-        let prompt = client.read_prompt().await?;
-
-        assert!(
-            prompt.contains("Choose a username:"),
-            "Expected username prompt, got: {prompt}"
-        );
+        // Read the "Choose a username:" prompt
+        client
+            .read_line_assert_contains_all(&["Choose", "username"])
+            .await?;
 
         // Send username
         client.send_line(username).await?;
@@ -81,40 +42,9 @@ impl TestClient<TlsStream<TcpStream>> {
 
         Ok(client)
     }
-}
 
-impl<S> TestClient<S>
-where S: AsyncRead + AsyncWrite + Unpin
-{
     /// Sends a line to the server.
-    pub async fn send_line(&mut self, msg: &str) -> Result<()> {
-        self.writer.write_all(msg.as_bytes()).await?;
-        self.writer.write_all(b"\n").await?;
-        Ok(())
-    }
-
-    /// Reads a prompt from the server using custom termination logic.
-    ///
-    /// Specifically, reads until the first ':', then also reads the following byte (assumed to be a
-    /// trailing space).
-    pub async fn read_prompt(&mut self) -> Result<String> {
-        let read_future = async {
-            // Read up to and including the ':' delimiter
-            let mut buffer = Vec::new();
-            self.reader.read_until(b':', &mut buffer).await?;
-
-            // Read the trailing space
-            let mut space = [0u8; 1];
-            self.reader.read_exact(&mut space).await?;
-            buffer.push(space[0]);
-
-            Ok(String::from_utf8_lossy(&buffer).to_string())
-        };
-
-        tokio::time::timeout(READ_TIMEOUT, read_future)
-            .await
-            .context("Timeout reading prompt")?
-    }
+    pub async fn send_line(&mut self, msg: &str) -> Result<()> { self.conn.send_line(msg).await }
 
     /// Reads a line from the server with a timeout and asserts that it contains the specified
     /// substring.
@@ -125,9 +55,7 @@ where S: AsyncRead + AsyncWrite + Unpin
     /// Reads a line from the server with a timeout and asserts that it contains all the specified
     /// substrings.
     pub async fn read_line_assert_contains_all(&mut self, expected: &[&str]) -> Result<String> {
-        let mut line = String::new();
-
-        tokio::time::timeout(READ_TIMEOUT, self.reader.read_line(&mut line))
+        let line = tokio::time::timeout(READ_TIMEOUT, self.conn.read_line())
             .await
             .context("Timeout reading line")??;
 
@@ -147,21 +75,18 @@ where S: AsyncRead + AsyncWrite + Unpin
     /// messages when multiple clients get disconnected at the same time during shutdown).
     #[allow(dead_code)] // Not actually dead code
     pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
-        let mut line = String::new();
         let deadline = Instant::now() + READ_TIMEOUT;
 
         loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
 
-            tokio::time::timeout(remaining, self.reader.read_line(&mut line))
+            let line = tokio::time::timeout(remaining, self.conn.read_line())
                 .await
                 .context("Timeout reading lines until match")??;
 
             if line.contains(expected) {
                 break Ok(line);
             }
-
-            line.clear();
         }
     }
 }
