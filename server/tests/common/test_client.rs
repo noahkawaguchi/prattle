@@ -90,4 +90,16 @@ impl TestClient {
             }
         }
     }
+
+    /// Reads to the end of the reader half with a timeout to expect the server's `close_notify`,
+    /// gracefully closes the writer half of the connection to send `close_notify`, and consumes
+    /// `self`.
+    #[allow(dead_code)] // Not actually dead code
+    pub async fn graceful_disconnect(mut self) -> Result<()> {
+        tokio::time::timeout(READ_TIMEOUT, self.reader.read_to_end())
+            .await
+            .context("Timeout reading until EOF")??;
+
+        self.writer.shutdown().await
+    }
 }

@@ -3,7 +3,7 @@ use anyhow::{Context, Result, anyhow};
 use rustls::{ClientConfig, pki_types::ServerName};
 use std::{sync::Arc, time::Duration};
 use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader, ReadHalf, WriteHalf},
     net::TcpStream,
 };
 use tokio_rustls::{TlsConnector, client::TlsStream};
@@ -69,6 +69,17 @@ impl ClientReader {
         let mut line = String::new();
         self.reader.read_line(&mut line).await?;
         Ok(line)
+    }
+
+    /// Reads from the server until EOF.
+    ///
+    /// # Errors
+    ///
+    /// Returns `Err` if the read fails.
+    pub async fn read_to_end(&mut self) -> Result<()> {
+        let mut discard = Vec::new();
+        self.reader.read_to_end(&mut discard).await?;
+        Ok(())
     }
 }
 

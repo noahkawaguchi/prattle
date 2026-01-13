@@ -21,7 +21,7 @@ fn quit_command_sends_goodbye_message_and_broadcast() -> Result<()> {
         client1.read_line_assert_contains("Goodbye").await?;
 
         // Quitting client disconnects
-        drop(client1);
+        client1.graceful_disconnect().await?;
 
         // Client 2 should see leave message
         client2.read_line_assert_contains("alice left").await?;
@@ -94,7 +94,7 @@ fn who_command_lists_online_users() -> Result<()> {
         // Users who quit should not be included in the /who command listing
         client1.send_line("/quit").await?;
         client1.read_line_assert_contains("Goodbye").await?;
-        drop(client1);
+        client1.graceful_disconnect().await?;
         client2.read_line_assert_contains("alice left").await?;
         client2.send_line("/who").await?;
         let who_listing = client2
