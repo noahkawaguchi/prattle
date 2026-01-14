@@ -2,7 +2,7 @@
 
 # Prattle
 
-A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems programming concepts such as async I/O, concurrent client handling, network protocol design, and graceful resource management.
+A TLS-encrypted TCP chat server with a client CLI, Prattle demonstrates systems programming concepts such as async I/O, concurrent client handling, network protocol design, and graceful resource management.
 
 ## Table of Contents
 
@@ -34,7 +34,7 @@ A TLS-encrypted TCP chat server written in Rust, Prattle demonstrates systems pr
 
 ## Architecture
 
-Prattle uses a broadcast channel architecture where:
+The server uses a broadcast channel architecture where:
 
 1. The server accepts TLS connections and spawns a task per client
 2. Clients select unique usernames upon connecting
@@ -56,7 +56,6 @@ Prattle uses a broadcast channel architecture where:
 
 - The [Rust toolchain](https://rust-lang.org/tools/install/)
 - The command runner [just](https://github.com/casey/just#installation) (or manually run the commands in the [`justfile`](justfile))
-- A TLS-capable client such as `openssl s_client`
 
 ## Running the Server
 
@@ -68,10 +67,7 @@ just serve
 
 ## Connecting as a Client
 
-> [!NOTE]
-> Prattle uses self-signed certificates for development, so you'll need to accept the certificate when connecting.
-
-Simply execute the command `just`. As with the server, the `BIND_ADDR` environment variable will be read from `.env` if present, falling back to the same default:
+Simply execute the command `just` to connect to the running server using the client CLI. As with the server, the `BIND_ADDR` environment variable will be read from `.env` if present, falling back to the same default:
 
 ```bash
 just
