@@ -1,13 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use rustls::{
     DigitallySignedStruct, SignatureScheme,
     client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
     pki_types::{CertificateDer, ServerName, UnixTime},
 };
 use std::fs;
-
-/// The file path for the server's certificate (public key and metadata) for TLS.
-const CERT_PATH: &str = "server.crt";
 
 /// A certificate verifier that validates against a pinned certificate from file.
 ///
@@ -19,17 +16,20 @@ pub struct PinnedCertVerifier {
 }
 
 impl PinnedCertVerifier {
-    /// Creates a new pinned certificate verifier by loading the certificate from file.
+    /// Creates a new pinned certificate verifier by loading a certificate file at `path`.
     ///
     /// # Errors
     ///
     /// Returns `Err` if the file reading or pem parsing fails.
-    pub fn from_file() -> Result<Self> {
+    pub fn from_file(path: &str) -> Result<Self> {
         Ok(Self {
             expected_cert: CertificateDer::from(
-                pem::parse(&fs::read_to_string(CERT_PATH)?)?
-                    .contents()
-                    .to_vec(),
+                pem::parse(
+                    &fs::read_to_string(path)
+                        .with_context(|| format!("Failed to read cert at path {path}"))?,
+                )?
+                .contents()
+                .to_vec(),
             ),
         })
     }

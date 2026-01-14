@@ -68,8 +68,8 @@ fn shutdown_waits_for_clients_to_disconnect_gracefully() -> Result<()> {
             "Server should still be waiting for client to disconnect"
         );
 
-        // Now disconnect the client by dropping it
-        drop(client);
+        // Now disconnect the client
+        client.graceful_disconnect().await?;
 
         // Server should shut down quickly after client disconnects
         tokio::time::sleep(Duration::from_millis(150)).await;
@@ -108,7 +108,7 @@ fn shutdown_times_out_when_client_does_not_disconnect() -> Result<()> {
             "Server should still be waiting for client (before client timeout)"
         );
 
-        // Keep the client connected (don't drop it) and wait for the 4s per-client timeout
+        // Keep the client connected and wait for the 4s per-client timeout
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         // Server should have shut down after the timeout despite the client still being connected
@@ -149,11 +149,13 @@ fn shutdown_proceeds_if_all_clients_already_left() -> Result<()> {
     tokio_test(async {
         let (addr, shutdown_tx, server_handle) = test_server::spawn_with_shutdown().await?;
 
-        // Connect two clients, drop them, and then shut down
-        let client1 = TestClient::connect_with_username("alice", &addr).await?;
-        let client2 = TestClient::connect_with_username("bob", &addr).await?;
-        drop(client1);
-        drop(client2);
+        // Connect two clients, disconnect them, and then shut down
+        let mut client1 = TestClient::connect_with_username("alice", &addr).await?;
+        let mut client2 = TestClient::connect_with_username("bob", &addr).await?;
+        client1.send_line("/quit").await?;
+        client2.send_line("/quit").await?;
+        client1.graceful_disconnect().await?;
+        client2.graceful_disconnect().await?;
 
         shutdown_tx
             .send(())
@@ -245,7 +247,7 @@ fn shutdown_during_username_selection_disconnects_gracefully() -> Result<()> {
             "Server should still be waiting for client (before client timeout)"
         );
 
-        // Keep the client connected (don't drop it) and wait for the 4s per-client timeout
+        // Keep the client connected and wait for the 4s per-client timeout
         tokio::time::sleep(Duration::from_secs(3)).await;
 
         // Server should have shut down after the timeout despite the client still being connected

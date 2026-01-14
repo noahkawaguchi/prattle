@@ -8,14 +8,13 @@ use rustls::{
 use std::{
     fs,
     net::{IpAddr, Ipv4Addr},
-    path::Path,
     str::FromStr,
     sync::{Arc, Mutex, OnceLock},
 };
 use tracing::info;
 
 /// The file path for the server's certificate (public key and metadata) for TLS.
-const CERT_PATH: &str = "server.crt";
+pub const CERT_PATH: &str = "server.crt";
 
 /// The file path for the server's private key for TLS.
 const KEY_PATH: &str = "server.key";
@@ -42,7 +41,8 @@ pub fn create_config() -> Result<Arc<ServerConfig>> {
         .map_err(|e| anyhow!("Lock poisoned: {e}"))?;
 
     // Check if certificate files exist and load/regenerate them accordingly while holding the lock
-    let files_found = Path::new(CERT_PATH).exists() && Path::new(KEY_PATH).exists();
+    let files_found = fs::exists(CERT_PATH).is_ok_and(|verified| verified)
+        && fs::exists(KEY_PATH).is_ok_and(|verified| verified);
 
     let (cert, key) = if files_found {
         load_cert_and_key()?

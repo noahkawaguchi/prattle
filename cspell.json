@@ -12,6 +12,8 @@
     "dtolnay",
     "Swatinem",
     "ocsp",
-    "justfile"
+    "justfile",
+    "syscall",
+    "SPSC"
   ]
 }
