@@ -1,5 +1,3 @@
-mod common;
-
 use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::{Result, anyhow};
 use std::time::Duration;

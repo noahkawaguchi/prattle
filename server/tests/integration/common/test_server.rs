@@ -9,7 +9,6 @@ use tokio::{
 
 /// Spawns the server on a random available port, returning the address, a `Sender` to send the
 /// shutdown signal, and a `JoinHandle` to the server task.
-#[allow(dead_code)] // Not actually dead code
 pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>)> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
@@ -23,7 +22,6 @@ pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>
 
 /// Spawns the server with the default signal handler on a random available port and returns the
 /// address.
-#[allow(dead_code)] // Not actually dead code
 pub async fn spawn() -> Result<String> {
     Ok(
         inner_spawn_with_shutdown(prattle_server::shutdown_signal::listen()?)
