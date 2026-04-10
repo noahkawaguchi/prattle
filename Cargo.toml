@@ -11,6 +11,8 @@ pedantic = { level = "warn", priority = -1 }
 nursery = { level = "warn", priority = -1 }
 unwrap_used = "forbid"
 expect_used = "forbid"
+allow_attributes = "forbid"
+allow_attributes_without_reason = "forbid"
 
 [workspace.dependencies]
 anyhow = "1.0.100"

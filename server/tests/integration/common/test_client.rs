@@ -85,7 +85,6 @@ impl TestClient {
     ///
     /// This is useful when other messages might be arbitrarily interleaved (e.g., "left the server"
     /// messages when multiple clients get disconnected at the same time during shutdown).
-    #[allow(dead_code)] // Not actually dead code
     pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
         let deadline = Instant::now() + READ_TIMEOUT;
         let mut line = String::new();
@@ -108,7 +107,6 @@ impl TestClient {
     /// Reads to the end of the reader half with a timeout to expect the server's `close_notify`,
     /// gracefully closes the writer half of the connection to send `close_notify`, and consumes
     /// `self`.
-    #[allow(dead_code)] // Not actually dead code
     pub async fn graceful_disconnect(mut self) -> Result<()> {
         let mut discard = Vec::new();
 
