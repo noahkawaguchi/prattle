@@ -11,6 +11,7 @@ pub const COMMAND_HELP: &[u8] = b"
 
 /// The set of valid commands, including arbitrary messages and the empty (no-op) command.
 #[derive(PartialEq, Eq)]
+#[cfg_attr(test, derive(Debug))]
 pub enum Command<'a> {
     /// The no-op command.
     Empty,
@@ -61,8 +62,9 @@ mod tests {
     #[test]
     fn parses_empty_strings() {
         for input in ["", " ", "   ", "\t", "\n", " \t \n "] {
-            assert!(
-                matches!(Command::parse(input), Command::Empty),
+            assert_eq!(
+                Command::parse(input),
+                Command::Empty,
                 "expected Empty command for {input}"
             );
         }
@@ -71,8 +73,9 @@ mod tests {
     #[test]
     fn parses_quit_command() {
         for input in ["/quit", "  /quit  ", "/quit\n"] {
-            assert!(
-                matches!(Command::parse(input), Command::Quit),
+            assert_eq!(
+                Command::parse(input),
+                Command::Quit,
                 "expected Quit command for {input}"
             );
         }
@@ -81,8 +84,9 @@ mod tests {
     #[test]
     fn parses_help_command() {
         for input in ["/help", "  /help  ", "/help\n"] {
-            assert!(
-                matches!(Command::parse(input), Command::Help),
+            assert_eq!(
+                Command::parse(input),
+                Command::Help,
                 "expected Help command for {input}"
             );
         }
@@ -91,8 +95,9 @@ mod tests {
     #[test]
     fn parses_who_command() {
         for input in ["/who", "  /who  ", "/who\n"] {
-            assert!(
-                matches!(Command::parse(input), Command::Who),
+            assert_eq!(
+                Command::parse(input),
+                Command::Who,
                 "expected Who command for {input}"
             );
         }
@@ -108,11 +113,9 @@ mod tests {
             // Internal spaces in the action text are preserved
             ("/action does   something", "does   something"),
         ] {
-            assert!(
-                matches!(
-                    Command::parse(input),
-                    Command::Action(action) if action == expected_action
-                ),
+            assert_eq!(
+                Command::parse(input),
+                Command::Action(expected_action),
                 "expected Action(\"{expected_action}\") for {input}"
             );
         }
@@ -123,8 +126,9 @@ mod tests {
         // "/action" without trailing space and text is treated as a regular message
         // "/action " with trailing space gets trimmed to "/action", also a message
         for input in ["/action", "/action "] {
-            assert!(
-                matches!(Command::parse(input), Command::Msg(msg) if msg == "/action"),
+            assert_eq!(
+                Command::parse(input),
+                Command::Msg("/action"),
                 "expected Msg(\"/action\") for {input}"
             );
         }
@@ -138,8 +142,9 @@ mod tests {
             ("  This is a message  ", "This is a message"),
             ("Multi-word message here", "Multi-word message here"),
         ] {
-            assert!(
-                matches!(Command::parse(input), Command::Msg(msg) if msg == expected_msg),
+            assert_eq!(
+                Command::parse(input),
+                Command::Msg(expected_msg),
                 "expected Msg(\"{expected_msg}\") for {input}"
             );
         }
@@ -149,9 +154,10 @@ mod tests {
     fn parses_unknown_commands_as_messages() {
         // Commands that don't exist should be treated as regular messages
         for input in ["/unknown", "/sleep", "/quit_now"] {
-            assert!(
-                matches!(Command::parse(input), Command::Msg(msg) if msg == input),
-                "expected Msg(\"{input}\") for {input}"
+            assert_eq!(
+                Command::parse(input),
+                Command::Msg(input),
+                "expected Msg(\"{input}\") for {input}",
             );
         }
     }
@@ -160,8 +166,9 @@ mod tests {
     fn parses_messages_resembling_commands() {
         // Messages that have / but aren't valid commands
         for input in ["/", "//", "This /action is in the middle"] {
-            assert!(
-                matches!(Command::parse(input), Command::Msg(msg) if msg == input),
+            assert_eq!(
+                Command::parse(input),
+                Command::Msg(input),
                 "expected Msg(\"{input}\") for {input}"
             );
         }
