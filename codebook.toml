@@ -1,0 +1,21 @@
+words = [
+    "CLI",
+    "EOF",
+    "Rustls",
+    "SPSC",
+    "Swatinem",
+    "TLS",
+    "Tokio",
+    "Tokio's",
+    "backpressure",
+    "clippy",
+    "crypto",
+    "dotenv",
+    "dtolnay",
+    "lossy",
+    "rustfmt",
+    "syscall",
+    "xzf",
+]
+ignore_paths = ["Cargo.lock"]
+ignore_patterns = ['\b[a-fA-F0-9]{64}\b']
