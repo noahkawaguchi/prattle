@@ -1,6 +1,6 @@
 use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::{Result, anyhow};
-use std::time::Duration;
+use std::{assert_matches, time::Duration};
 
 #[test]
 fn shutdown_broadcasts_to_all_connected_clients() -> Result<()> {
@@ -196,10 +196,9 @@ fn server_stops_accepting_new_connections_during_graceful_shutdown() -> Result<(
 
         // A new connection attempt should fail while the server is in the graceful shutdown process
         // waiting for clients to disconnect
-        assert!(
-            TestClient::connect_with_username("bob", &addr)
-                .await
-                .is_err()
+        assert_matches!(
+            TestClient::connect_with_username("bob", &addr).await,
+            Err(_)
         );
 
         // Even after the connection attempt failure, the server should still be waiting for the

@@ -1,5 +1,6 @@
 use crate::common::{test_client::TestClient, test_server, tokio_test};
 use anyhow::Result;
+use std::assert_matches;
 
 #[test]
 fn quit_command_sends_goodbye_message_and_broadcast() -> Result<()> {
@@ -49,7 +50,7 @@ fn help_command_lists_usage() -> Result<()> {
         }
 
         // Client 2 should not have seen Client 1's help message
-        assert!(client2.read_line_assert_contains("").await.is_err());
+        assert_matches!(client2.read_line_assert_contains("").await, Err(_));
 
         // Client 2 should get the same block after using the /help command
         client2.send_line("/help").await?;
@@ -81,7 +82,7 @@ fn who_command_lists_online_users() -> Result<()> {
             .await?;
 
         // Client 2 should not have seen Client 1's listing
-        assert!(client2.read_line_assert_contains("").await.is_err());
+        assert_matches!(client2.read_line_assert_contains("").await, Err(_));
 
         // Client 2 should get the same list after using the /help command
         client2.send_line("/who").await?;

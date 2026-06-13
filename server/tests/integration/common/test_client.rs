@@ -12,6 +12,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(2);
 const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
+#[derive(Debug)]
 pub struct TestClient {
     reader: prattle_client::ClientReader,
     writer: prattle_client::ClientWriter,
