@@ -1,7 +1,7 @@
-use anyhow::{Context, Result};
+use anyhow::{Context as _, Result};
 use std::time::Duration;
 use tokio::{
-    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt},
+    io::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _},
     time::Instant,
 };
 

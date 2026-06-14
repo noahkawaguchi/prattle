@@ -1,6 +1,6 @@
-use anyhow::{Context, Result};
-use std::{env, io::BufRead, time::Duration};
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt};
+use anyhow::{Context as _, Result};
+use std::{env, io::BufRead as _, time::Duration};
+use tokio::io::{AsyncBufReadExt as _, AsyncWriteExt as _};
 
 /// The amount of time to wait when connecting to the server.
 const CONNECTION_TIMEOUT: Duration = Duration::from_secs(10);

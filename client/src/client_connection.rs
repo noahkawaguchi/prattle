@@ -1,5 +1,5 @@
 use crate::pinned_cert_verifier::PinnedCertVerifier;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context as _, Result, anyhow};
 use rustls::{ClientConfig, pki_types::ServerName};
 use std::{sync::Arc, time::Duration};
 use tokio::{io::BufReader, net::TcpStream};
