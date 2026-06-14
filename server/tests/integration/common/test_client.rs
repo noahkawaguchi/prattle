@@ -87,7 +87,10 @@ impl TestClient {
     /// This is useful when other messages might be arbitrarily interleaved (e.g., "left the server"
     /// messages when multiple clients get disconnected at the same time during shutdown).
     pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
-        let deadline = Instant::now() + READ_TIMEOUT;
+        let deadline = Instant::now()
+            .checked_add(READ_TIMEOUT)
+            .context("Overflow adding `READ_TIMEOUT` to now")?;
+
         let mut line = String::new();
 
         loop {
