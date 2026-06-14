@@ -8,7 +8,7 @@ use rustls::{
 use std::{
     fs,
     net::{IpAddr, Ipv4Addr},
-    str::FromStr,
+    str::FromStr as _,
     sync::{Arc, Mutex, OnceLock},
 };
 use tracing::info;

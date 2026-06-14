@@ -1,7 +1,7 @@
 pub mod test_client;
 pub mod test_server;
 
-use anyhow::{Context, Result};
+use anyhow::{Context as _, Result};
 use tracing::level_filters::LevelFilter;
 
 /// The log level to use when running tests, unless overridden by the `RUST_LOG` environment
