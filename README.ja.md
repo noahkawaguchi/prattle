@@ -54,7 +54,7 @@ Prattle（プラットル）は、クライアントCLI付きのTLS暗号化対�
 
 ## 前提条件
 
-- [Rustツールチェーン](https://rust-lang.org/tools/install/)
+- [Rustツールチェーン](https://rust-lang.org/ja/tools/install/)
 - コマンドランナーの[just](https://github.com/casey/just#installation)（またはインストールしない場合、[`justfile`](justfile)に記載されているコマンドを手動で実行することも可能）
 
 ## サーバーの実行
