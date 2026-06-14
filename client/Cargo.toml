@@ -1,14 +1,14 @@
 [package]
-name = "prattle-client"
+name    = "prattle-client"
 version = "0.1.0"
 edition = "2024"
 
+[dependencies]
+anyhow.workspace       = true
+pem.workspace          = true
+rustls.workspace       = true
+tokio.workspace        = true
+tokio-rustls.workspace = true
+
 [lints]
 workspace = true
-
-[dependencies]
-anyhow.workspace = true
-pem.workspace = true
-rustls.workspace = true
-tokio.workspace = true
-tokio-rustls.workspace = true
