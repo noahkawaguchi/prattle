@@ -6,11 +6,13 @@ use tokio::{io::BufReader, net::TcpStream};
 use tokio_rustls::TlsConnector;
 
 /// The reader half of a client connection.
+#[expect(unused_qualifications, reason = "Absolute paths for type alias")]
 pub type ClientReader = tokio::io::BufReader<
     tokio::io::ReadHalf<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>,
 >;
 
 /// The writer half of a client connection.
+#[expect(unused_qualifications, reason = "Absolute paths for type alias")]
 pub type ClientWriter =
     tokio::io::WriteHalf<tokio_rustls::client::TlsStream<tokio::net::TcpStream>>;
 
