@@ -1,22 +1,23 @@
 [workspace]
-members = ["server", "client"]
 resolver = "3"
+members  = ["client", "server"]
+
+[workspace.dependencies]
+anyhow       = "1.0.100"
+pem          = "3.0.6"
+rustls       = "0.23.35"
+tokio        = { version = "1.48.0", features = ["full"] }
+tokio-rustls = "0.26.4"
+
+[workspace.lints.clippy]
+all      = { level = "warn", priority = -1 }
+nursery  = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+
+allow_attributes                = "forbid"
+allow_attributes_without_reason = "forbid"
+expect_used                     = "forbid"
+unwrap_used                     = "forbid"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
-
-[workspace.lints.clippy]
-all = { level = "warn", priority = -1 }
-pedantic = { level = "warn", priority = -1 }
-nursery = { level = "warn", priority = -1 }
-unwrap_used = "forbid"
-expect_used = "forbid"
-allow_attributes = "forbid"
-allow_attributes_without_reason = "forbid"
-
-[workspace.dependencies]
-anyhow = "1.0.100"
-pem = "3.0.6"
-rustls = "0.23.35"
-tokio = { version = "1.48.0", features = ["full"] }
-tokio-rustls = "0.26.4"
