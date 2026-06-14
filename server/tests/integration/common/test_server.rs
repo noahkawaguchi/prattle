@@ -1,12 +1,14 @@
-use crate::common::TEST_LOG_LEVEL;
-use anyhow::Result;
-use std::time::Duration;
-use tokio::{
-    net::TcpListener,
-    sync::oneshot::{self, Sender},
-    task::JoinHandle,
+use {
+    crate::common::TEST_LOG_LEVEL,
+    anyhow::Result,
+    std::time::Duration,
+    tokio::{
+        net::TcpListener,
+        sync::oneshot::{self, Sender},
+        task::JoinHandle,
+    },
+    tracing::debug,
 };
-use tracing::debug;
 
 /// Spawns the server on a random available port, returning the address, a `Sender` to send the
 /// shutdown signal, and a `JoinHandle` to the server task.
@@ -22,11 +24,9 @@ pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>
 /// Spawns the server with the default signal handler on a random available port and returns the
 /// address.
 pub async fn spawn() -> Result<String> {
-    Ok(
-        inner_spawn_with_shutdown(prattle_server::shutdown_signal::listen()?)
-            .await?
-            .0,
-    )
+    Ok(inner_spawn_with_shutdown(prattle_server::shutdown_signal::listen()?)
+        .await?
+        .0)
 }
 
 /// Spawns the server with `shutdown_signal` as the shutdown signal on a random available port and
@@ -37,7 +37,7 @@ async fn inner_spawn_with_shutdown(
     if let Err(e) = prattle_server::logger::init_with_default(TEST_LOG_LEVEL) {
         debug!(
             "Error initializing tracing subscriber (expected when already initialized in another \
-            test): {e}"
+             test): {e}"
         );
     }
 

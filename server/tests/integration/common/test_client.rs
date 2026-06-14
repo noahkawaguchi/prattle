@@ -1,8 +1,10 @@
-use anyhow::{Context as _, Result};
-use std::time::Duration;
-use tokio::{
-    io::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _},
-    time::Instant,
+use {
+    anyhow::{Context as _, Result},
+    std::time::Duration,
+    tokio::{
+        io::{AsyncBufReadExt as _, AsyncReadExt as _, AsyncWriteExt as _},
+        time::Instant,
+    },
 };
 
 /// The amount of time to wait when connecting to the server.

@@ -1,19 +1,21 @@
-use crate::client;
-use anyhow::Result;
-use std::{
-    collections::HashSet,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering::SeqCst},
+use {
+    crate::client,
+    anyhow::Result,
+    std::{
+        collections::HashSet,
+        sync::{
+            Arc,
+            atomic::{AtomicUsize, Ordering::SeqCst},
+        },
+        time::{Duration, Instant},
     },
-    time::{Duration, Instant},
+    tokio::{
+        net::TcpListener,
+        sync::{Mutex, broadcast},
+    },
+    tokio_rustls::{TlsAcceptor, rustls::ServerConfig},
+    tracing::{error, info, warn},
 };
-use tokio::{
-    net::TcpListener,
-    sync::{Mutex, broadcast},
-};
-use tokio_rustls::{TlsAcceptor, rustls::ServerConfig};
-use tracing::{error, info, warn};
 
 /// The number of messages that can be held in the channel.
 const CHANNEL_CAP: usize = 100;
@@ -115,8 +117,8 @@ pub async fn run(
         while !users.lock().await.is_empty() || active_clients.load(SeqCst) > 0 {
             if start.elapsed() >= GLOBAL_SHUTDOWN_TIMEOUT {
                 warn!(
-                    "Global shutdown timeout reached with {} user(s) and \
-                    {} active client(s) still connected",
+                    "Global shutdown timeout reached with {} user(s) and {} active client(s) \
+                     still connected",
                     users.lock().await.len(),
                     active_clients.load(SeqCst)
                 );

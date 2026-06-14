@@ -1,9 +1,11 @@
-use crate::pinned_cert_verifier::PinnedCertVerifier;
-use anyhow::{Context as _, Result, anyhow};
-use rustls::{ClientConfig, pki_types::ServerName};
-use std::{sync::Arc, time::Duration};
-use tokio::{io::BufReader, net::TcpStream};
-use tokio_rustls::TlsConnector;
+use {
+    crate::pinned_cert_verifier::PinnedCertVerifier,
+    anyhow::{Context as _, Result, anyhow},
+    rustls::{ClientConfig, pki_types::ServerName},
+    std::{sync::Arc, time::Duration},
+    tokio::{io::BufReader, net::TcpStream},
+    tokio_rustls::TlsConnector,
+};
 
 /// The reader half of a client connection.
 #[expect(unused_qualifications, reason = "Absolute paths for type alias")]
