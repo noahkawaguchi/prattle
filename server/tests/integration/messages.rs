@@ -1,5 +1,7 @@
-use crate::common::{test_client::TestClient, test_server, tokio_test};
-use anyhow::Result;
+use {
+    crate::common::{test_client::TestClient, test_server, tokio_test},
+    anyhow::Result,
+};
 
 #[test]
 fn client_messages_broadcast_to_all_clients() -> Result<()> {

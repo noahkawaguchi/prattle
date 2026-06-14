@@ -1,6 +1,8 @@
-use crate::common::{test_client::TestClient, test_server, tokio_test};
-use anyhow::Result;
-use std::assert_matches;
+use {
+    crate::common::{test_client::TestClient, test_server, tokio_test},
+    anyhow::Result,
+    std::assert_matches,
+};
 
 #[test]
 fn quit_command_sends_goodbye_message_and_broadcast() -> Result<()> {

@@ -1,10 +1,12 @@
-use anyhow::{Context as _, Result};
-use rustls::{
-    DigitallySignedStruct, SignatureScheme,
-    client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
-    pki_types::{CertificateDer, ServerName, UnixTime},
+use {
+    anyhow::{Context as _, Result},
+    rustls::{
+        DigitallySignedStruct, SignatureScheme,
+        client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
+        pki_types::{CertificateDer, ServerName, UnixTime},
+    },
+    std::fs,
 };
-use std::fs;
 
 /// A certificate verifier that validates against a pinned certificate from file.
 ///
@@ -65,9 +67,7 @@ impl ServerCertVerifier for PinnedCertVerifier {
             cert,
             dss,
             &rustls::crypto::CryptoProvider::get_default()
-                .ok_or(rustls::Error::General(String::from(
-                    "No default crypto provider",
-                )))?
+                .ok_or(rustls::Error::General(String::from("No default crypto provider")))?
                 .signature_verification_algorithms,
         )
     }
@@ -83,9 +83,7 @@ impl ServerCertVerifier for PinnedCertVerifier {
             cert,
             dss,
             &rustls::crypto::CryptoProvider::get_default()
-                .ok_or(rustls::Error::General(String::from(
-                    "No default crypto provider",
-                )))?
+                .ok_or(rustls::Error::General(String::from("No default crypto provider")))?
                 .signature_verification_algorithms,
         )
     }

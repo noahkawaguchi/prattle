@@ -62,44 +62,28 @@ mod tests {
     #[test]
     fn parses_empty_strings() {
         for input in ["", " ", "   ", "\t", "\n", " \t \n "] {
-            assert_eq!(
-                Command::parse(input),
-                Command::Empty,
-                "expected Empty command for {input}"
-            );
+            assert_eq!(Command::parse(input), Command::Empty, "expected Empty command for {input}");
         }
     }
 
     #[test]
     fn parses_quit_command() {
         for input in ["/quit", "  /quit  ", "/quit\n"] {
-            assert_eq!(
-                Command::parse(input),
-                Command::Quit,
-                "expected Quit command for {input}"
-            );
+            assert_eq!(Command::parse(input), Command::Quit, "expected Quit command for {input}");
         }
     }
 
     #[test]
     fn parses_help_command() {
         for input in ["/help", "  /help  ", "/help\n"] {
-            assert_eq!(
-                Command::parse(input),
-                Command::Help,
-                "expected Help command for {input}"
-            );
+            assert_eq!(Command::parse(input), Command::Help, "expected Help command for {input}");
         }
     }
 
     #[test]
     fn parses_who_command() {
         for input in ["/who", "  /who  ", "/who\n"] {
-            assert_eq!(
-                Command::parse(input),
-                Command::Who,
-                "expected Who command for {input}"
-            );
+            assert_eq!(Command::parse(input), Command::Who, "expected Who command for {input}");
         }
     }
 

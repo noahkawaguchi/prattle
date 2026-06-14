@@ -1,20 +1,22 @@
-use crate::{
-    command::{COMMAND_HELP, Command},
-    server::GLOBAL_SHUTDOWN_TIMEOUT,
-};
-use anyhow::{Result, anyhow};
-use std::{collections::HashSet, sync::Arc, time::Duration};
-use tokio::{
-    io::{
-        AsyncBufReadExt as _, AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _,
-        BufReader,
+use {
+    crate::{
+        command::{COMMAND_HELP, Command},
+        server::GLOBAL_SHUTDOWN_TIMEOUT,
     },
-    sync::{
-        Mutex,
-        broadcast::{Receiver, Sender, error::RecvError},
+    anyhow::{Result, anyhow},
+    std::{collections::HashSet, sync::Arc, time::Duration},
+    tokio::{
+        io::{
+            AsyncBufReadExt as _, AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _,
+            BufReader,
+        },
+        sync::{
+            Mutex,
+            broadcast::{Receiver, Sender, error::RecvError},
+        },
     },
+    tracing::{error, info, warn},
 };
-use tracing::{error, info, warn};
 
 /// The time to wait for a client to close their connection before forcefully disconnecting.
 const CLIENT_DISCONNECT_TIMEOUT: Duration =
@@ -140,11 +142,8 @@ where
     async fn run(&mut self) -> Result<()> {
         self.writer
             .write_all(
-                format!(
-                    "Hi {}, welcome to Prattle! (Send /help for help)\n",
-                    self.username
-                )
-                .as_bytes(),
+                format!("Hi {}, welcome to Prattle! (Send /help for help)\n", self.username)
+                    .as_bytes(),
             )
             .await?;
 

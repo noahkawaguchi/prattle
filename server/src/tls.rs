@@ -1,17 +1,19 @@
-use anyhow::{Result, anyhow};
-use pem::Pem;
-use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, SanType, string::Ia5String};
-use rustls::{
-    ServerConfig,
-    pki_types::{CertificateDer, PrivateKeyDer},
+use {
+    anyhow::{Result, anyhow},
+    pem::Pem,
+    rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair, SanType, string::Ia5String},
+    rustls::{
+        ServerConfig,
+        pki_types::{CertificateDer, PrivateKeyDer},
+    },
+    std::{
+        fs,
+        net::{IpAddr, Ipv4Addr},
+        str::FromStr as _,
+        sync::{Arc, Mutex, OnceLock},
+    },
+    tracing::info,
 };
-use std::{
-    fs,
-    net::{IpAddr, Ipv4Addr},
-    str::FromStr as _,
-    sync::{Arc, Mutex, OnceLock},
-};
-use tracing::info;
 
 /// The file path for the server's certificate (public key and metadata) for TLS.
 pub const CERT_PATH: &str = "server.crt";
@@ -100,16 +102,8 @@ fn generate_self_signed_cert_and_key() -> Result<(CertificateDer<'static>, Priva
 /// Saves a certificate and private key to file in PEM format.
 fn save_cert_and_key(cert: &CertificateDer<'_>, key: &PrivateKeyDer<'_>) -> Result<()> {
     // Convert DER to PEM format and save as files
-    fs::write(
-        CERT_PATH,
-        pem::encode(&Pem::new("CERTIFICATE", cert.as_ref())),
-    )?;
-
-    fs::write(
-        KEY_PATH,
-        pem::encode(&Pem::new("PRIVATE KEY", key.secret_der())),
-    )?;
-
+    fs::write(CERT_PATH, pem::encode(&Pem::new("CERTIFICATE", cert.as_ref())))?;
+    fs::write(KEY_PATH, pem::encode(&Pem::new("PRIVATE KEY", key.secret_der())))?;
     Ok(())
 }
 

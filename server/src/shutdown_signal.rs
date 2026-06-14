@@ -1,5 +1,7 @@
-use anyhow::Result;
-use tracing::{info, warn};
+use {
+    anyhow::Result,
+    tracing::{info, warn},
+};
 
 /// Creates Unix signal handlers that listen for SIGINT and SIGTERM.
 ///
