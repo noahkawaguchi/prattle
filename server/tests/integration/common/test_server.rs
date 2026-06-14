@@ -6,16 +6,15 @@ use tokio::{
     sync::oneshot::{self, Sender},
     task::JoinHandle,
 };
+use tracing::debug;
 
 /// Spawns the server on a random available port, returning the address, a `Sender` to send the
 /// shutdown signal, and a `JoinHandle` to the server task.
 pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>)> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
-    let (addr, handle) = inner_spawn_with_shutdown(async {
-        shutdown_rx.await.ok();
-    })
-    .await?;
+    let (addr, handle) =
+        inner_spawn_with_shutdown(async { assert_eq!(shutdown_rx.await, Ok(())) }).await?;
 
     Ok((addr, shutdown_tx, handle))
 }
@@ -35,8 +34,12 @@ pub async fn spawn() -> Result<String> {
 async fn inner_spawn_with_shutdown(
     shutdown_signal: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(String, JoinHandle<()>)> {
-    // Ignore the error if the tracing subscriber was already initialized in another test
-    let _ = prattle_server::logger::init_with_default(TEST_LOG_LEVEL);
+    if let Err(e) = prattle_server::logger::init_with_default(TEST_LOG_LEVEL) {
+        debug!(
+            "Error initializing tracing subscriber (expected when already initialized in another \
+            test): {e}"
+        );
+    }
 
     // Bind to port 0 to get a random available port and immediately drop the listener so the port
     // is available for the server to bind
