@@ -54,8 +54,10 @@ The server uses a broadcast channel architecture where:
 
 ## Prerequisites
 
-- The [Rust toolchain](https://rust-lang.org/tools/install/)
-- The command runner [just](https://github.com/casey/just#installation) (or manually run the commands in the [`justfile`](justfile))
+- For [Nix](https://github.com/NixOS/nix) users, the toolchain is included as a flake.
+- Otherwise, install:
+  - The [Rust toolchain](https://rust-lang.org/tools/install/)
+  - The command runner [Just](https://github.com/casey/just) (or manually run the commands in the [`justfile`](justfile))
 
 ## Running the Server
 
