@@ -18,19 +18,20 @@ A TLS-encrypted TCP chat server with a client CLI, Prattle demonstrates systems 
 
 ## Features
 
-- **TLS Encryption**: All client-server communication is encrypted using Rustls
-- **Concurrent Client Handling**: Supports multiple simultaneous clients using both shared state and message passing in Tokio's async runtime
-- **Command System**: Simple text-based protocol with commands for chatting, actions, and server queries
-- **Backpressure Handling**: Recognizes slow clients and warns them when they fall behind
-- **Graceful Shutdown**: Cleanly handles server shutdown with proper client notification and connection draining
-- **Strict Code Quality and Testing**: Completely forbids `unsafe`, `unwrap`, and `expect` using Clippy and includes a comprehensive test suite, with all checks enforced in CI
+- All client-server communication is TLS encrypted using Rustls
+- Supports multiple concurrent clients using both shared state and message passing in Tokio's async runtime
+- Simple text-based protocol with command system for chatting, actions, and server queries
+- Handles backpressure by recognizing slow clients and warning them when they fall behind
+- Cleanly handles graceful server shutdown with proper client notification and connection draining
+- Completely forbids `unsafe` and panicking constructs like `unwrap` and `expect` using Clippy
+- Tests, lints, format checking, and spell checking must all pass in CI before merging into `main`
 
 ## Tech Stack
 
-- **[Rust](https://github.com/rust-lang/rust)** - Chosen for performance and concurrency safety
-- **[Tokio](https://github.com/tokio-rs/tokio)** - Async runtime for handling concurrent client connections
-- **[Rustls](https://github.com/rustls/rustls)** - Modern TLS library for secure encryption
-- **[Tracing](https://github.com/tokio-rs/tracing)** - Structured logging for observability
+- [Rust](https://github.com/rust-lang/rust) - Chosen for performance and concurrency safety
+- [Tokio](https://github.com/tokio-rs/tokio) - Async runtime for handling concurrent client connections
+- [Rustls](https://github.com/rustls/rustls) - Modern TLS library for secure encryption
+- [Tracing](https://github.com/tokio-rs/tracing) - Structured logging for observability
 
 ## Architecture
 
