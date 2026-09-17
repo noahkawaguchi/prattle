@@ -34,7 +34,7 @@ type Users = Arc<Mutex<HashSet<String>>>;
 ///
 /// Returns `Err` for unexpected disconnections and technical errors. Logs expected and recoverable
 /// errors.
-pub async fn handle_client<S>(
+pub(crate) async fn handle_client<S>(
     socket: S,
     tx: Sender<String>,
     rx: Receiver<String>,

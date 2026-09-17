@@ -15,14 +15,14 @@ const READ_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Helper struct to manage a test client connection.
 #[derive(Debug)]
-pub struct TestClient {
+pub(crate) struct TestClient {
     reader: prattle_client::ClientReader,
     writer: prattle_client::ClientWriter,
 }
 
 impl TestClient {
     /// Connects to the server without completing username selection.
-    pub async fn connect(addr: &str) -> Result<Self> {
+    pub(crate) async fn connect(addr: &str) -> Result<Self> {
         let (reader, writer) =
             prattle_client::connect(prattle_server::tls::CERT_PATH, addr, CONNECT_TIMEOUT).await?;
 
@@ -30,7 +30,7 @@ impl TestClient {
     }
 
     /// Connects to the server and completes username selection.
-    pub async fn connect_with_username(username: &str, addr: &str) -> Result<Self> {
+    pub(crate) async fn connect_with_username(username: &str, addr: &str) -> Result<Self> {
         let mut client = Self::connect(addr).await?;
 
         // Read the "Choose a username:" prompt
@@ -53,7 +53,7 @@ impl TestClient {
     }
 
     /// Sends a line to the server.
-    pub async fn send_line(&mut self, msg: &str) -> Result<()> {
+    pub(crate) async fn send_line(&mut self, msg: &str) -> Result<()> {
         self.writer.write_all(msg.as_bytes()).await?;
         self.writer.write_all(b"\n").await?;
         Ok(())
@@ -61,13 +61,16 @@ impl TestClient {
 
     /// Reads a line from the server with a timeout and asserts that it contains the specified
     /// substring.
-    pub async fn read_line_assert_contains(&mut self, expected: &str) -> Result<String> {
+    pub(crate) async fn read_line_assert_contains(&mut self, expected: &str) -> Result<String> {
         self.read_line_assert_contains_all(&[expected]).await
     }
 
     /// Reads a line from the server with a timeout and asserts that it contains all the specified
     /// substrings.
-    pub async fn read_line_assert_contains_all(&mut self, expected: &[&str]) -> Result<String> {
+    pub(crate) async fn read_line_assert_contains_all(
+        &mut self,
+        expected: &[&str],
+    ) -> Result<String> {
         let mut line = String::new();
 
         tokio::time::timeout(READ_TIMEOUT, self.reader.read_line(&mut line))
@@ -88,7 +91,7 @@ impl TestClient {
     ///
     /// This is useful when other messages might be arbitrarily interleaved (e.g., "left the server"
     /// messages when multiple clients get disconnected at the same time during shutdown).
-    pub async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
+    pub(crate) async fn read_until_line_contains(&mut self, expected: &str) -> Result<String> {
         let deadline = Instant::now()
             .checked_add(READ_TIMEOUT)
             .context("Overflow adding `READ_TIMEOUT` to now")?;
@@ -113,7 +116,7 @@ impl TestClient {
     /// Reads to the end of the reader half with a timeout to expect the server's `close_notify`,
     /// gracefully closes the writer half of the connection to send `close_notify`, and consumes
     /// `self`.
-    pub async fn graceful_disconnect(mut self) -> Result<()> {
+    pub(crate) async fn graceful_disconnect(mut self) -> Result<()> {
         let mut discard = Vec::new();
 
         tokio::time::timeout(READ_TIMEOUT, self.reader.read_to_end(&mut discard))

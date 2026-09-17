@@ -1,5 +1,5 @@
 /// The help message explaining available commands.
-pub const COMMAND_HELP: &[u8] = b"
+pub(crate) const COMMAND_HELP: &[u8] = b"
 /quit             Leave the server
 /help             Show this message
 /who              List online users
@@ -12,7 +12,7 @@ pub const COMMAND_HELP: &[u8] = b"
 /// The set of valid commands, including arbitrary messages and the empty (no-op) command.
 #[derive(PartialEq, Eq)]
 #[cfg_attr(test, derive(Debug))]
-pub enum Command<'a> {
+pub(crate) enum Command<'a> {
     /// The no-op command.
     Empty,
 
@@ -36,7 +36,7 @@ impl<'a> Command<'a> {
     /// Parses a `Command` from a string. There are no error conditions because empty/whitespace
     /// strings are considered to be `Command::Empty` and unknown values are considered to be
     /// messages.
-    pub fn parse(input: &'a str) -> Self {
+    pub(crate) fn parse(input: &'a str) -> Self {
         let trimmed = input.trim();
 
         if trimmed.is_empty() {

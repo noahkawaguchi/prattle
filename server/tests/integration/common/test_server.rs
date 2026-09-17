@@ -12,7 +12,7 @@ use {
 
 /// Spawns the server on a random available port, returning the address, a `Sender` to send the
 /// shutdown signal, and a `JoinHandle` to the server task.
-pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>)> {
+pub(crate) async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>)> {
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
 
     let (addr, handle) =
@@ -23,7 +23,7 @@ pub async fn spawn_with_shutdown() -> Result<(String, Sender<()>, JoinHandle<()>
 
 /// Spawns the server with the default signal handler on a random available port and returns the
 /// address.
-pub async fn spawn() -> Result<String> {
+pub(crate) async fn spawn() -> Result<String> {
     Ok(inner_spawn_with_shutdown(prattle_server::shutdown_signal::listen()?)
         .await?
         .0)
