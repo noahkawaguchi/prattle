@@ -13,7 +13,7 @@ use {
 /// This verifier loads the server certificate from `CERT_PATH` and ensures that the server presents
 /// exactly that certificate during the TLS handshake.
 #[derive(Debug)]
-pub struct PinnedCertVerifier {
+pub(crate) struct PinnedCertVerifier {
     expected_cert: CertificateDer<'static>,
 }
 
@@ -23,7 +23,7 @@ impl PinnedCertVerifier {
     /// # Errors
     ///
     /// Returns `Err` if the file reading or pem parsing fails.
-    pub fn from_file(path: &str) -> Result<Self> {
+    pub(crate) fn from_file(path: &str) -> Result<Self> {
         Ok(Self {
             expected_cert: CertificateDer::from(
                 pem::parse(
