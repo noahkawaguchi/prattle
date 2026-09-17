@@ -6,6 +6,7 @@ connect:
     cargo run --package prattle-client
 
 # Run the server
+[continue]
 serve:
     cargo run --package prattle-server
 
