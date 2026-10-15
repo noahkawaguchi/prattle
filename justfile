@@ -5,6 +5,8 @@
 # Both server and client use `BIND_ADDR` if present
 set dotenv-load
 
+everything-flags := '--workspace --all-targets'
+
 ####################################################################################################
 # Running the project
 ####################################################################################################
@@ -29,12 +31,12 @@ all-checks: (test '--quiet') lint fmt-check spell-check
 # in the `server` subdirectory, while running the server generates them in the project root.
 [doc('Run all tests in the workspace')]
 test *ARGS:
-    cargo test --workspace --all-targets {{ ARGS }}
+    cargo test {{ everything-flags }} {{ ARGS }}
     rm -f server/server.crt server/server.key
 
 # Lint with Clippy, denying warnings
 lint:
-    cargo clippy --workspace --all-targets -- --deny warnings
+    cargo clippy {{ everything-flags }} -- --deny warnings
 
 # Check formatting
 fmt-check:
