@@ -2,6 +2,8 @@
 
 # Prattle
 
+[![CI](https://github.com/noahkawaguchi/prattle/actions/workflows/ci.yml/badge.svg)](https://github.com/noahkawaguchi/prattle/actions/workflows/ci.yml)
+
 Prattle（プラットル）は、クライアントCLI付きのTLS暗号化対応のTCPチャットサーバーです。非同期I/O、並行クライアント処理、ネットワークプロトコル設計、リソースの適切な管理などのシステムプログラミングの概念を習得するためのプロジェクトです。
 
 ## 目次
