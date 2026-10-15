@@ -1,9 +1,9 @@
 .env*
 !.env.example
 !.envrc
-.direnv/
 
-target/
+/target/
+/.direnv/
 
 # Note: For production, the .crt would be public and the .key would be managed
 # as a secret, but for demonstration purposes, they can be regenerated in every
