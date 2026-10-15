@@ -38,7 +38,7 @@ lint:
 
 # Check formatting
 fmt-check:
-    cargo fmt --all --check && echo 'Formatting check passed'
+    RUSTUP_TOOLCHAIN=nightly cargo fmt --all --check && echo 'Formatting check passed'
 
 # Check spelling with Codebook
 spell-check:
