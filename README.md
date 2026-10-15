@@ -2,6 +2,8 @@
 
 # Prattle
 
+[![CI](https://github.com/noahkawaguchi/prattle/actions/workflows/ci.yml/badge.svg)](https://github.com/noahkawaguchi/prattle/actions/workflows/ci.yml)
+
 A TLS-encrypted TCP chat server with a client CLI, Prattle demonstrates systems programming concepts such as async I/O, concurrent client handling, network protocol design, and graceful resource management.
 
 ## Table of Contents

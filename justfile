@@ -1,5 +1,15 @@
+####################################################################################################
+# Config
+####################################################################################################
+
 # Both server and client use `BIND_ADDR` if present
 set dotenv-load
+
+everything-flags := '--workspace --all-targets'
+
+####################################################################################################
+# Running the project
+####################################################################################################
 
 # Connect to the server as a client (default recipe)
 connect:
@@ -10,6 +20,10 @@ connect:
 serve:
     cargo run --package prattle-server
 
+####################################################################################################
+# Testing and quality
+####################################################################################################
+
 # Run tests, lints, format checking, and spell checking to match CI
 all-checks: (test '--quiet') lint fmt-check spell-check
 
@@ -17,16 +31,20 @@ all-checks: (test '--quiet') lint fmt-check spell-check
 # in the `server` subdirectory, while running the server generates them in the project root.
 [doc('Run all tests in the workspace')]
 test *ARGS:
-    cargo test --workspace --all-targets {{ ARGS }}
+    cargo test {{ everything-flags }} {{ ARGS }}
     rm -f server/server.crt server/server.key
 
 # Lint with Clippy, denying warnings
 lint:
-    cargo clippy --workspace --all-targets -- --deny warnings
+    cargo clippy {{ everything-flags }} -- --deny warnings
 
 # Check formatting
 fmt-check:
-    cargo fmt --all --check && echo 'Formatting check passed'
+    RUSTUP_TOOLCHAIN=nightly cargo fmt --all --check && echo 'Formatting check passed'
+
+# Apply formatting changes
+fmt:
+    RUSTUP_TOOLCHAIN=nightly cargo fmt --all
 
 # Check spelling with Codebook
 spell-check:

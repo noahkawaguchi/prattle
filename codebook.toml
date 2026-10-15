@@ -22,6 +22,7 @@ words = [
     "oxalica",
     "pkgs",
     "rustfmt",
+    "rustup",
     "syscall",
     "xzf",
 ]
