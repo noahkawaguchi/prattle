@@ -1,8 +1,10 @@
 use {
     anyhow::{Context as _, Result},
     rustls::{
+        CertificateError::ApplicationVerificationFailure,
         DigitallySignedStruct, SignatureScheme,
         client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier},
+        crypto::CryptoProvider,
         pki_types::{CertificateDer, ServerName, UnixTime},
     },
     std::fs,
@@ -28,7 +30,7 @@ impl PinnedCertVerifier {
             expected_cert: CertificateDer::from(
                 pem::parse(
                     &fs::read_to_string(path)
-                        .with_context(|| format!("Failed to read cert at path {path}"))?,
+                        .with_context(|| format!("failed to read cert at path {path}"))?,
                 )?
                 .contents()
                 .to_vec(),
@@ -47,13 +49,9 @@ impl ServerCertVerifier for PinnedCertVerifier {
         _now: UnixTime,
     ) -> Result<ServerCertVerified, rustls::Error> {
         // Verify that the server's certificate matches the pinned certificate
-        if end_entity.as_ref() == self.expected_cert.as_ref() {
-            Ok(ServerCertVerified::assertion())
-        } else {
-            Err(rustls::Error::InvalidCertificate(
-                rustls::CertificateError::ApplicationVerificationFailure,
-            ))
-        }
+        (end_entity.as_ref() == self.expected_cert.as_ref())
+            .then(ServerCertVerified::assertion)
+            .ok_or(rustls::Error::InvalidCertificate(ApplicationVerificationFailure))
     }
 
     fn verify_tls12_signature(
@@ -66,8 +64,8 @@ impl ServerCertVerifier for PinnedCertVerifier {
             message,
             cert,
             dss,
-            &rustls::crypto::CryptoProvider::get_default()
-                .ok_or(rustls::Error::General(String::from("No default crypto provider")))?
+            &CryptoProvider::get_default()
+                .ok_or_else(|| rustls::Error::General(String::from("no default crypto provider")))?
                 .signature_verification_algorithms,
         )
     }
@@ -82,19 +80,17 @@ impl ServerCertVerifier for PinnedCertVerifier {
             message,
             cert,
             dss,
-            &rustls::crypto::CryptoProvider::get_default()
-                .ok_or(rustls::Error::General(String::from("No default crypto provider")))?
+            &CryptoProvider::get_default()
+                .ok_or_else(|| rustls::Error::General(String::from("no default crypto provider")))?
                 .signature_verification_algorithms,
         )
     }
 
     fn supported_verify_schemes(&self) -> Vec<SignatureScheme> {
-        rustls::crypto::CryptoProvider::get_default()
-            .map(|provider| {
-                provider
-                    .signature_verification_algorithms
-                    .supported_schemes()
-            })
-            .unwrap_or_default()
+        CryptoProvider::get_default().map_or_default(|provider| {
+            provider
+                .signature_verification_algorithms
+                .supported_schemes()
+        })
     }
 }
